@@ -26,7 +26,7 @@ class X402Prober {
         }
 
         const tool = toolsToProbe[index]
-        const { restricted, paymentRequired } = await X402Prober.#probeTool( { client, tool, timeout } )
+        const { restricted, paymentRequired, legacyDetection } = await X402Prober.#probeTool( { client, tool, timeout } )
 
         if( restricted && paymentRequired ) {
             const toolName = tool['name']
@@ -39,6 +39,10 @@ class X402Prober {
                     .forEach( ( option ) => {
                         paymentOptions.push( option )
                     } )
+            }
+
+            if( legacyDetection ) {
+                messages.push( `PRB-006 probe(${toolName}): x402 detected via legacy error code — server may not be spec-compliant (expected isError tool result)` )
             }
         } else if( restricted === null ) {
             const toolName = tool['name']
@@ -54,18 +58,62 @@ class X402Prober {
         const args = X402Prober.#buildMinimalArgs( { tool } )
 
         try {
-            await client.callTool( { name: toolName, arguments: args }, { timeout } )
+            const result = await client.callTool( { name: toolName, arguments: args }, { timeout } )
 
-            return { restricted: false, paymentRequired: null }
+            const paymentRequired = X402Prober.#extractPaymentFromResult( { result } )
+
+            if( paymentRequired ) {
+                return { restricted: true, paymentRequired, legacyDetection: false }
+            }
+
+            return { restricted: false, paymentRequired: null, legacyDetection: false }
         } catch( error ) {
             const { is402, paymentRequired } = X402Prober.#parse402Error( { error } )
 
             if( is402 ) {
-                return { restricted: true, paymentRequired }
+                return { restricted: true, paymentRequired, legacyDetection: true }
             }
 
-            return { restricted: false, paymentRequired: null }
+            return { restricted: null, paymentRequired: null, legacyDetection: false }
         }
+    }
+
+
+    static #extractPaymentFromResult( { result } ) {
+        if( !result || !result.isError ) {
+            return null
+        }
+
+        if( result.structuredContent ) {
+            const sc = result.structuredContent
+
+            if( sc.x402Version !== undefined && Array.isArray( sc.accepts ) ) {
+                return sc
+            }
+        }
+
+        const content = result.content
+
+        if( !Array.isArray( content ) || content.length === 0 ) {
+            return null
+        }
+
+        const first = content[0]
+
+        if( !first || first.type !== 'text' || !first.text ) {
+            return null
+        }
+
+        try {
+            const parsed = JSON.parse( first.text )
+
+            if( parsed && parsed.x402Version !== undefined && Array.isArray( parsed.accepts ) ) {
+                return parsed
+            }
+        } catch( _e ) {
+        }
+
+        return null
     }
 
 
