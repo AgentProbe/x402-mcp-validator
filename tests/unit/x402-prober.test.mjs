@@ -320,6 +320,91 @@ describe( 'X402Prober', () => {
         } )
 
 
+        test( 'PRB-007 message for spec-konform detection', async () => {
+            const mockClient = {
+                callTool: jest.fn()
+                    .mockResolvedValueOnce( {
+                        structuredContent: { x402Version: 2, accepts: [ { scheme: 'exact' } ] },
+                        content: [ { type: 'text', text: '{"x402Version":2,"accepts":[{"scheme":"exact"}]}' } ],
+                        isError: true
+                    } )
+                    .mockResolvedValueOnce( { content: [] } )
+            }
+
+            const { messages } = await X402Prober
+                .probe( { client: mockClient, tools: MOCK_TOOLS, timeout: 5000 } )
+
+            expect( messages.some( ( m ) => m.includes( 'PRB-007' ) ) ).toBe( true )
+            expect( messages.some( ( m ) => m.includes( 'spec-konform' ) ) ).toBe( true )
+        } )
+
+
+        test( 'PRB-008 extracts payment from error.message JSON (transport mixing)', async () => {
+            const paymentJson = '{"x402Version":1,"error":"Payment Required","accepts":[{"scheme":"exact","network":"eip155:8453","amount":"10000"}]}'
+            const error = new Error( 'Streamable HTTP error: Error POSTing to endpoint: ' + paymentJson )
+            error.code = 402
+
+            const mockClient = {
+                callTool: jest.fn()
+                    .mockRejectedValueOnce( error )
+                    .mockResolvedValueOnce( { content: [] } )
+            }
+
+            const { messages, restrictedCalls, paymentOptions } = await X402Prober
+                .probe( { client: mockClient, tools: MOCK_TOOLS, timeout: 5000 } )
+
+            expect( restrictedCalls ).toHaveLength( 1 )
+            expect( restrictedCalls[ 0 ].paymentRequired.x402Version ).toBe( 1 )
+            expect( restrictedCalls[ 0 ].paymentRequired.accepts ).toHaveLength( 1 )
+            expect( paymentOptions ).toHaveLength( 1 )
+            expect( messages.some( ( m ) => m.includes( 'PRB-008' ) ) ).toBe( true )
+            expect( messages.some( ( m ) => m.includes( 'transport mixing' ) ) ).toBe( true )
+        } )
+
+
+        test( 'PRB-009 detects Base64 paymentRequired in structuredContent', async () => {
+            const payment = { x402Version: 2, accepts: [ { scheme: 'exact', network: 'eip155:8453', amount: '1000000' } ] }
+            const b64 = Buffer.from( JSON.stringify( payment ) ).toString( 'base64' )
+
+            const mockClient = {
+                callTool: jest.fn()
+                    .mockResolvedValueOnce( {
+                        content: [ { type: 'text', text: 'Payment required' } ],
+                        structuredContent: { ok: true, status: 402, paymentRequired: b64 },
+                        isError: false
+                    } )
+                    .mockResolvedValueOnce( { content: [] } )
+            }
+
+            const { messages, restrictedCalls } = await X402Prober
+                .probe( { client: mockClient, tools: MOCK_TOOLS, timeout: 5000 } )
+
+            expect( restrictedCalls ).toHaveLength( 1 )
+            expect( restrictedCalls[ 0 ].paymentRequired.x402Version ).toBe( 2 )
+            expect( messages.some( ( m ) => m.includes( 'PRB-009' ) ) ).toBe( true )
+        } )
+
+
+        test( 'PRB-010 detects x402 API redirect in tool result', async () => {
+            const mockClient = {
+                callTool: jest.fn()
+                    .mockResolvedValueOnce( {
+                        content: [ { type: 'text', text: '{"endpoint":"https://x402.server.com/api/tool","payment":"x402 protocol","price":"$0.05"}' } ],
+                        structuredContent: { endpoint: 'https://x402.server.com/api/tool', payment: 'x402 protocol' },
+                        isError: false
+                    } )
+                    .mockResolvedValueOnce( { content: [] } )
+            }
+
+            const { messages, restrictedCalls } = await X402Prober
+                .probe( { client: mockClient, tools: MOCK_TOOLS, timeout: 5000 } )
+
+            expect( restrictedCalls ).toHaveLength( 1 )
+            expect( restrictedCalls[ 0 ].paymentRequired.redirect ).toBeDefined()
+            expect( messages.some( ( m ) => m.includes( 'PRB-010' ) ) ).toBe( true )
+        } )
+
+
         test( 'handles required field with unknown type', async () => {
             const toolsUnknown = [
                 {
