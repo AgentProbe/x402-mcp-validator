@@ -1,4 +1,4 @@
-[![Test](https://img.shields.io/github/actions/workflow/status/FlowMCP/x402-mcp-validator/test-on-push.yml)]() ![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)
+[![Test](https://img.shields.io/github/actions/workflow/status/agentprobe/x402-mcp-validator/test-on-push.yml)]() ![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)
 
 # x402-mcp-validator
 
@@ -7,7 +7,7 @@ Validates MCP servers end-to-end: connects via StreamableHTTP or SSE, discovers 
 ## Quickstart
 
 ```bash
-git clone https://github.com/FlowMCP/x402-mcp-validator.git
+git clone https://github.com/agentprobe/x402-mcp-validator.git
 cd x402-mcp-validator
 npm i
 ```
