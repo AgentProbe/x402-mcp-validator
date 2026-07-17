@@ -151,10 +151,10 @@ describe( 'McpServerValidator.compare', () => {
             const before = buildSnapshot()
             const after = buildSnapshot()
 
-            const { status, messages, hasChanges, diff } = McpServerValidator.compare( { before, after } )
+            const { status, findings, hasChanges, diff } = McpServerValidator.compare( { before, after } )
 
             expect( status ).toBe( true )
-            expect( messages ).toEqual( [] )
+            expect( findings ).toEqual( [] )
             expect( hasChanges ).toBe( false )
             expect( diff['tools']['added'] ).toEqual( [] )
             expect( diff['tools']['removed'] ).toEqual( [] )
@@ -320,10 +320,10 @@ describe( 'McpServerValidator.compare', () => {
                 }
             } )
 
-            const { messages } = McpServerValidator.compare( { before, after } )
+            const { findings } = McpServerValidator.compare( { before, after } )
 
-            expect( messages ).toContainEqual(
-                expect.stringContaining( 'CMP-001' )
+            expect( findings ).toContainEqual(
+                expect.objectContaining( { code: 'CMP-001', severity: 'warning', location: 'compare' } )
             )
         } )
 
@@ -337,10 +337,10 @@ describe( 'McpServerValidator.compare', () => {
             } )
             const after = buildSnapshot()
 
-            const { messages } = McpServerValidator.compare( { before, after } )
+            const { findings } = McpServerValidator.compare( { before, after } )
 
-            expect( messages ).toContainEqual(
-                expect.stringContaining( 'CMP-002' )
+            expect( findings ).toContainEqual(
+                expect.objectContaining( { code: 'CMP-002', severity: 'warning', location: 'compare' } )
             )
         } )
 
@@ -359,10 +359,10 @@ describe( 'McpServerValidator.compare', () => {
                 }
             } )
 
-            const { messages } = McpServerValidator.compare( { before, after } )
+            const { findings } = McpServerValidator.compare( { before, after } )
 
-            expect( messages ).toContainEqual(
-                expect.stringContaining( 'CMP-003' )
+            expect( findings ).toContainEqual(
+                expect.objectContaining( { code: 'CMP-003', severity: 'warning', location: 'compare' } )
             )
         } )
     } )

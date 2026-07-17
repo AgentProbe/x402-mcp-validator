@@ -128,7 +128,7 @@ import { McpServerValidator } from 'x402-mcp-validator'
 const before = await McpServerValidator.start( { endpoint: 'https://server.example.com/mcp' } )
 const after = await McpServerValidator.start( { endpoint: 'https://server.example.com/mcp' } )
 
-const { status, messages, hasChanges, diff } = McpServerValidator.compare( { before, after } )
+const { status, findings, hasChanges, diff } = McpServerValidator.compare( { before, after } )
 
 console.log( `Changes detected: ${hasChanges}` )
 console.log( `Tools added: ${diff['tools']['added'].length}` )
@@ -138,13 +138,13 @@ console.log( `Tools removed: ${diff['tools']['removed'].length}` )
 **Returns**
 
 ```javascript
-{ status, messages, hasChanges, diff }
+{ status, findings, hasChanges, diff }
 ```
 
 | Key | Type | Description |
 |-----|------|-------------|
 | status | boolean | `true` when comparison completed |
-| messages | array of strings | Integrity warnings (URL mismatch, timestamp issues) |
+| findings | array of objects | `CMP-*` integrity findings `{ code, severity, location, message }` (URL mismatch, timestamp issues) |
 | hasChanges | boolean | `true` when any diff section has changes |
 | diff | object | Structured diff with sections: `server`, `capabilities`, `tools`, `x402`, `latency`, `categories` |
 
@@ -289,8 +289,9 @@ bands — this validator owns the `VAL-2xx` and `CON-2xx` bands.
 
 ### CMP — Comparison
 
-The `.compare()` diff engine still emits `CMP-*` codes; its migration to the structured finding
-object is tracked separately.
+The `.compare()` diff engine emits `CMP-*` codes as structured finding objects
+`{ code, severity, location: 'compare', message }` on its `findings` array — uniform with `start()`.
+The `diff` and `hasChanges` are keyed structurally on `entries`/`categories`, never on the codes.
 
 | Code | Severity | Description |
 |------|----------|-------------|
