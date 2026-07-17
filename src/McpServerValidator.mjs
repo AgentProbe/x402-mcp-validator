@@ -11,28 +11,33 @@ class McpServerValidator {
 
 
     static async start( { endpoint, timeout = 10000 } ) {
-        const { status: validationStatus, messages: validationMessages } = Validation.validationStart( { endpoint, timeout } )
-        if( !validationStatus ) { Validation.error( { messages: validationMessages } ) }
+        const { status: validationStatus, findings: validationFindings } = Validation.validationStart( { endpoint, timeout } )
+        if( !validationStatus ) {
+            const messages = validationFindings
+                .map( ( finding ) => `${finding['code']} ${finding['location']}: ${finding['message']}` )
 
-        const { messages: oauthMessages, supportsOAuth, oauthEntries } = await OAuthProber.probe( { endpoint, timeout } )
+            Validation.error( { messages } )
+        }
 
-        const { status: connectStatus, messages: connectMessages, client, serverInfo } = await McpConnector.connect( { endpoint, timeout } )
+        const { findings: oauthFindings, supportsOAuth, oauthEntries } = await OAuthProber.probe( { endpoint, timeout } )
+
+        const { status: connectStatus, findings: connectFindings, client, serverInfo } = await McpConnector.connect( { endpoint, timeout } )
 
         if( !connectStatus ) {
             const { categories, entries } = SnapshotBuilder.buildEmpty( { endpoint, oauthEntries, supportsOAuth } )
-            const messages = [ ...connectMessages, ...oauthMessages ]
+            const findings = [ ...connectFindings, ...oauthFindings ]
 
-            return { status: false, messages, categories, entries }
+            return { status: false, findings, categories, entries }
         }
 
-        const { messages, categories, entries } = await McpServerValidator.#runPipeline( { endpoint, client, serverInfo, timeout, oauthEntries, supportsOAuth } )
+        const { findings: pipelineFindings, categories, entries } = await McpServerValidator.#runPipeline( { endpoint, client, serverInfo, timeout, oauthEntries, supportsOAuth } )
 
         await McpConnector.disconnect( { client } )
 
-        const allMessages = [ ...connectMessages, ...oauthMessages, ...messages ]
-        const status = allMessages.length === 0
+        const allFindings = [ ...connectFindings, ...oauthFindings, ...pipelineFindings ]
+        const status = allFindings.length === 0
 
-        return { status, messages: allMessages, categories, entries }
+        return { status, findings: allFindings, categories, entries }
     }
 
 
@@ -69,18 +74,18 @@ class McpServerValidator {
 
 
     static async #runPipeline( { endpoint, client, serverInfo, timeout, oauthEntries, supportsOAuth } ) {
-        const allMessages = []
+        const allFindings = []
 
-        const { messages: discoverMessages, tools, resources, prompts, capabilities } = await McpConnector.discover( { client } )
-        allMessages.push( ...discoverMessages )
+        const { findings: discoverFindings, tools, resources, prompts, capabilities } = await McpConnector.discover( { client } )
+        allFindings.push( ...discoverFindings )
 
         const { categories: partialCategories } = CapabilityClassifier.classify( { serverInfo, tools, resources, prompts, capabilities } )
 
-        const { messages: probeMessages, restrictedCalls, paymentOptions } = await X402Prober.probe( { client, tools, timeout } )
-        allMessages.push( ...probeMessages )
+        const { findings: probeFindings, restrictedCalls, paymentOptions } = await X402Prober.probe( { client, tools, timeout } )
+        allFindings.push( ...probeFindings )
 
-        const { messages: paymentMessages, validPaymentOptions } = PaymentValidator.validate( { restrictedCalls, paymentOptions } )
-        allMessages.push( ...paymentMessages )
+        const { findings: paymentFindings, validPaymentOptions } = PaymentValidator.validate( { restrictedCalls, paymentOptions } )
+        allFindings.push( ...paymentFindings )
 
         const { latency } = await McpConnector.measureLatency( { client, tools } )
 
@@ -100,7 +105,7 @@ class McpServerValidator {
             supportsOAuth
         } )
 
-        return { messages: allMessages, categories, entries }
+        return { findings: allFindings, categories, entries }
     }
 
 

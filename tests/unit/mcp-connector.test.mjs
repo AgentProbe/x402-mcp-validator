@@ -57,15 +57,15 @@ describe( 'McpConnector', () => {
 
 
     describe( 'connect', () => {
-        test( 'returns CON-001 when server is not reachable', async () => {
+        test( 'returns CON-201 when server is not reachable', async () => {
             const originalFetch = globalThis.fetch
             globalThis.fetch = jest.fn().mockRejectedValue( new Error( 'ECONNREFUSED' ) )
 
-            const { status, messages, client } = await McpConnector
+            const { status, findings, client } = await McpConnector
                 .connect( { endpoint: 'https://unreachable.example.com/mcp', timeout: 1000 } )
 
             expect( status ).toBe( false )
-            expect( messages[ 0 ] ).toContain( 'CON-001' )
+            expect( findings[ 0 ] ).toEqual( { code: 'CON-201', severity: 'error', location: 'endpoint', message: 'Server is not reachable' } )
             expect( client ).toBeNull()
 
             globalThis.fetch = originalFetch
@@ -107,7 +107,7 @@ describe( 'McpConnector', () => {
         } )
 
 
-        test( 'returns CON-004 when both transports fail', async () => {
+        test( 'returns CON-204 when both transports fail', async () => {
             const originalFetch = globalThis.fetch
             globalThis.fetch = jest.fn().mockResolvedValue( { ok: true } )
 
@@ -115,11 +115,12 @@ describe( 'McpConnector', () => {
                 .mockRejectedValueOnce( new Error( 'StreamableHTTP failed' ) )
                 .mockRejectedValueOnce( new Error( 'SSE failed' ) )
 
-            const { status, messages, client } = await McpConnector
+            const { status, findings, client } = await McpConnector
                 .connect( { endpoint: 'https://broken.example.com/mcp', timeout: 5000 } )
 
             expect( status ).toBe( false )
-            expect( messages[ 0 ] ).toContain( 'CON-004' )
+            expect( findings[ 0 ]['code'] ).toBe( 'CON-204' )
+            expect( findings[ 0 ]['severity'] ).toBe( 'error' )
             expect( client ).toBeNull()
 
             globalThis.fetch = originalFetch
@@ -165,12 +166,12 @@ describe( 'McpConnector', () => {
                 getServerCapabilities: mockGetServerCapabilities
             }
 
-            const { status, tools, messages } = await McpConnector
+            const { status, tools, findings } = await McpConnector
                 .discover( { client: mockClient } )
 
             expect( status ).toBe( true )
             expect( tools ).toEqual( [] )
-            expect( messages ).toContain( 'CON-008 tools/list: Request failed' )
+            expect( findings ).toContainEqual( { code: 'CON-208', severity: 'warning', location: 'tools/list', message: 'Request failed' } )
         } )
 
 
@@ -187,11 +188,11 @@ describe( 'McpConnector', () => {
                 getServerCapabilities: mockGetServerCapabilities
             }
 
-            const { resources, messages } = await McpConnector
+            const { resources, findings } = await McpConnector
                 .discover( { client: mockClient } )
 
             expect( resources ).toEqual( [] )
-            expect( messages ).toContain( 'CON-010 resources/list: Request failed' )
+            expect( findings ).toContainEqual( { code: 'CON-210', severity: 'info', location: 'resources/list', message: 'Request failed' } )
         } )
 
 
@@ -208,11 +209,11 @@ describe( 'McpConnector', () => {
                 getServerCapabilities: mockGetServerCapabilities
             }
 
-            const { prompts, messages } = await McpConnector
+            const { prompts, findings } = await McpConnector
                 .discover( { client: mockClient } )
 
             expect( prompts ).toEqual( [] )
-            expect( messages ).toContain( 'CON-011 prompts/list: Request failed' )
+            expect( findings ).toContainEqual( { code: 'CON-211', severity: 'info', location: 'prompts/list', message: 'Request failed' } )
         } )
     } )
 

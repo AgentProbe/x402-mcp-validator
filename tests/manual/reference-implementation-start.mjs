@@ -8,14 +8,14 @@ const runStart = async () => {
     console.log( `\n  Validating MCP Server: ${MCP_URL}\n` )
 
     try {
-        const { status, messages, categories, entries } = await McpServerValidator.start( { endpoint: MCP_URL, timeout: 15000 } )
+        const { status, findings, categories, entries } = await McpServerValidator.start( { endpoint: MCP_URL, timeout: 15000 } )
 
         console.log( `  Status: ${status ? 'PASS' : 'FAIL'}` )
-        console.log( `  Messages: ${messages.length === 0 ? 'none' : ''}` )
+        console.log( `  Findings: ${findings.length === 0 ? 'none' : ''}` )
 
-        messages
-            .forEach( ( msg ) => {
-                console.log( `    - ${msg}` )
+        findings
+            .forEach( ( finding ) => {
+                console.log( `    - [${finding['severity']}] ${finding['code']} ${finding['location']}: ${finding['message']}` )
             } )
 
         console.log( '\n  Categories:' )

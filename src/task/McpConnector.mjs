@@ -7,40 +7,40 @@ class McpConnector {
 
 
     static async connect( { endpoint, timeout } ) {
-        const messages = []
+        const findings = []
 
         const { reachable } = await McpConnector.#checkReachable( { endpoint, timeout } )
 
         if( !reachable ) {
-            messages.push( 'CON-001 endpoint: Server is not reachable' )
+            findings.push( { code: 'CON-201', severity: 'error', location: 'endpoint', message: 'Server is not reachable' } )
 
-            return { status: false, messages, client: null, serverInfo: null }
+            return { status: false, findings, client: null, serverInfo: null }
         }
 
         const { client, serverInfo, error } = await McpConnector.#initializeClient( { endpoint, timeout } )
 
         if( error ) {
-            messages.push( `CON-004 mcp: Initialize handshake failed — ${error}` )
+            findings.push( { code: 'CON-204', severity: 'error', location: 'mcp', message: `Initialize handshake failed — ${error}` } )
 
-            return { status: false, messages, client: null, serverInfo: null }
+            return { status: false, findings, client: null, serverInfo: null }
         }
 
-        return { status: true, messages, client, serverInfo }
+        return { status: true, findings, client, serverInfo }
     }
 
 
     static async discover( { client } ) {
-        const messages = []
+        const findings = []
 
-        const { tools } = await McpConnector.#listTools( { client, messages } )
-        const { resources } = await McpConnector.#listResources( { client, messages } )
-        const { prompts } = await McpConnector.#listPrompts( { client, messages } )
+        const { tools } = await McpConnector.#listTools( { client, findings } )
+        const { resources } = await McpConnector.#listResources( { client, findings } )
+        const { prompts } = await McpConnector.#listPrompts( { client, findings } )
 
         const capabilities = McpConnector.#getCapabilities( { client } )
 
         const status = true
 
-        return { status, messages, tools, resources, prompts, capabilities }
+        return { status, findings, tools, resources, prompts, capabilities }
     }
 
 
@@ -179,48 +179,48 @@ class McpConnector {
     }
 
 
-    static async #listTools( { client, messages } ) {
+    static async #listTools( { client, findings } ) {
         try {
             const result = await client.listTools()
             const tools = result['tools'] || []
 
             if( !Array.isArray( tools ) ) {
-                messages.push( 'CON-009 tools/list: Invalid response format' )
+                findings.push( { code: 'CON-209', severity: 'warning', location: 'tools/list', message: 'Invalid response format' } )
 
                 return { tools: [] }
             }
 
             return { tools }
         } catch( _e ) {
-            messages.push( 'CON-008 tools/list: Request failed' )
+            findings.push( { code: 'CON-208', severity: 'warning', location: 'tools/list', message: 'Request failed' } )
 
             return { tools: [] }
         }
     }
 
 
-    static async #listResources( { client, messages } ) {
+    static async #listResources( { client, findings } ) {
         try {
             const result = await client.listResources()
             const resources = result['resources'] || []
 
             return { resources }
         } catch( _e ) {
-            messages.push( 'CON-010 resources/list: Request failed' )
+            findings.push( { code: 'CON-210', severity: 'info', location: 'resources/list', message: 'Request failed' } )
 
             return { resources: [] }
         }
     }
 
 
-    static async #listPrompts( { client, messages } ) {
+    static async #listPrompts( { client, findings } ) {
         try {
             const result = await client.listPrompts()
             const prompts = result['prompts'] || []
 
             return { prompts }
         } catch( _e ) {
-            messages.push( 'CON-011 prompts/list: Request failed' )
+            findings.push( { code: 'CON-211', severity: 'info', location: 'prompts/list', message: 'Request failed' } )
 
             return { prompts: [] }
         }

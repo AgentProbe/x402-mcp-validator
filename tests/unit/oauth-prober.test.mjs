@@ -52,10 +52,10 @@ describe( 'OAuthProber', () => {
                 status: 404
             } )
 
-            const { supportsOAuth, messages, oauthEntries } = await OAuthProber.probe( { endpoint: TEST_ENDPOINT, timeout: 5000 } )
+            const { supportsOAuth, findings, oauthEntries } = await OAuthProber.probe( { endpoint: TEST_ENDPOINT, timeout: 5000 } )
 
             expect( supportsOAuth ).toBe( false )
-            expect( messages.length ).toBe( 0 )
+            expect( findings.length ).toBe( 0 )
             expect( oauthEntries['issuer'] ).toBeNull()
             expect( oauthEntries['authorizationEndpoint'] ).toBeNull()
         } )
@@ -109,21 +109,21 @@ describe( 'OAuthProber', () => {
         } )
 
 
-        test( 'returns AUTH-010 informational message', async () => {
-            const { messages } = await OAuthProber.probe( { endpoint: TEST_ENDPOINT, timeout: 5000 } )
+        test( 'returns AUTH-010 informational finding', async () => {
+            const { findings } = await OAuthProber.probe( { endpoint: TEST_ENDPOINT, timeout: 5000 } )
 
-            const hasAuth010 = messages
-                .some( ( msg ) => msg.includes( 'AUTH-010' ) )
+            const auth010 = findings
+                .find( ( finding ) => finding['code'] === 'AUTH-010' )
 
-            expect( hasAuth010 ).toBe( true )
+            expect( auth010 ).toEqual( { code: 'AUTH-010', severity: 'info', location: 'oauth', message: 'Server requires authentication' } )
         } )
 
 
         test( 'returns AUTH-011 with scopes', async () => {
-            const { messages } = await OAuthProber.probe( { endpoint: TEST_ENDPOINT, timeout: 5000 } )
+            const { findings } = await OAuthProber.probe( { endpoint: TEST_ENDPOINT, timeout: 5000 } )
 
-            const hasAuth011 = messages
-                .some( ( msg ) => msg.includes( 'AUTH-011' ) )
+            const hasAuth011 = findings
+                .some( ( finding ) => finding['code'] === 'AUTH-011' )
 
             expect( hasAuth011 ).toBe( true )
         } )
@@ -165,11 +165,11 @@ describe( 'OAuthProber', () => {
         } )
 
 
-        test( 'does not produce AUTH-001 to AUTH-005 warnings', async () => {
-            const { messages } = await OAuthProber.probe( { endpoint: TEST_ENDPOINT, timeout: 5000 } )
+        test( 'does not produce AUTH-001 to AUTH-005 findings', async () => {
+            const { findings } = await OAuthProber.probe( { endpoint: TEST_ENDPOINT, timeout: 5000 } )
 
-            const warnings = messages
-                .filter( ( msg ) => msg.includes( 'AUTH-001' ) || msg.includes( 'AUTH-002' ) || msg.includes( 'AUTH-003' ) || msg.includes( 'AUTH-004' ) || msg.includes( 'AUTH-005' ) )
+            const warnings = findings
+                .filter( ( finding ) => [ 'AUTH-001', 'AUTH-002', 'AUTH-003', 'AUTH-004', 'AUTH-005' ].includes( finding['code'] ) )
 
             expect( warnings.length ).toBe( 0 )
         } )
@@ -178,7 +178,7 @@ describe( 'OAuthProber', () => {
 
     describe( 'Server with OAuth but without PKCE', () => {
 
-        test( 'returns AUTH-003 warning when PKCE S256 not supported', async () => {
+        test( 'returns AUTH-003 finding when PKCE S256 not supported', async () => {
             globalThis.fetch = jest.fn().mockImplementation( ( url ) => {
                 if( url.includes( 'oauth-protected-resource' ) ) {
                     return Promise.resolve( {
@@ -199,12 +199,12 @@ describe( 'OAuthProber', () => {
                 return Promise.resolve( { ok: false, status: 404 } )
             } )
 
-            const { messages, supportsOAuth } = await OAuthProber.probe( { endpoint: TEST_ENDPOINT, timeout: 5000 } )
+            const { findings, supportsOAuth } = await OAuthProber.probe( { endpoint: TEST_ENDPOINT, timeout: 5000 } )
 
             expect( supportsOAuth ).toBe( true )
 
-            const hasAuth003 = messages
-                .some( ( msg ) => msg.includes( 'AUTH-003' ) )
+            const hasAuth003 = findings
+                .some( ( finding ) => finding['code'] === 'AUTH-003' )
 
             expect( hasAuth003 ).toBe( true )
         } )
@@ -234,10 +234,10 @@ describe( 'OAuthProber', () => {
                 return Promise.resolve( { ok: false, status: 404 } )
             } )
 
-            const { messages } = await OAuthProber.probe( { endpoint: TEST_ENDPOINT, timeout: 5000 } )
+            const { findings } = await OAuthProber.probe( { endpoint: TEST_ENDPOINT, timeout: 5000 } )
 
-            const hasAuth005 = messages
-                .some( ( msg ) => msg.includes( 'AUTH-005' ) )
+            const hasAuth005 = findings
+                .some( ( finding ) => finding['code'] === 'AUTH-005' )
 
             expect( hasAuth005 ).toBe( true )
         } )
@@ -246,7 +246,7 @@ describe( 'OAuthProber', () => {
 
     describe( 'Protected Resource Metadata without authorization_servers', () => {
 
-        test( 'returns AUTH-004 warning', async () => {
+        test( 'returns AUTH-004 finding', async () => {
             const prmWithoutServers = {
                 resource: 'https://mcp.example.com/mcp',
                 scopes_supported: [ 'mcp:tools' ]
@@ -264,12 +264,12 @@ describe( 'OAuthProber', () => {
                 return Promise.resolve( { ok: false, status: 404 } )
             } )
 
-            const { messages, supportsOAuth } = await OAuthProber.probe( { endpoint: TEST_ENDPOINT, timeout: 5000 } )
+            const { findings, supportsOAuth } = await OAuthProber.probe( { endpoint: TEST_ENDPOINT, timeout: 5000 } )
 
             expect( supportsOAuth ).toBe( true )
 
-            const hasAuth004 = messages
-                .some( ( msg ) => msg.includes( 'AUTH-004' ) )
+            const hasAuth004 = findings
+                .some( ( finding ) => finding['code'] === 'AUTH-004' )
 
             expect( hasAuth004 ).toBe( true )
         } )
@@ -321,20 +321,20 @@ describe( 'OAuthProber', () => {
                 } )
             } )
 
-            const { supportsOAuth, messages } = await OAuthProber.probe( { endpoint: TEST_ENDPOINT, timeout: 100 } )
+            const { supportsOAuth, findings } = await OAuthProber.probe( { endpoint: TEST_ENDPOINT, timeout: 100 } )
 
             expect( supportsOAuth ).toBe( false )
-            expect( messages.length ).toBe( 0 )
+            expect( findings.length ).toBe( 0 )
         } )
 
 
         test( 'returns gracefully when fetch throws network error', async () => {
             globalThis.fetch = jest.fn().mockRejectedValue( new Error( 'ECONNREFUSED' ) )
 
-            const { supportsOAuth, messages } = await OAuthProber.probe( { endpoint: TEST_ENDPOINT, timeout: 5000 } )
+            const { supportsOAuth, findings } = await OAuthProber.probe( { endpoint: TEST_ENDPOINT, timeout: 5000 } )
 
             expect( supportsOAuth ).toBe( false )
-            expect( messages.length ).toBe( 0 )
+            expect( findings.length ).toBe( 0 )
         } )
     } )
 
@@ -354,12 +354,12 @@ describe( 'OAuthProber', () => {
                 return Promise.resolve( { ok: false, status: 404 } )
             } )
 
-            const { messages, supportsOAuth } = await OAuthProber.probe( { endpoint: TEST_ENDPOINT, timeout: 5000 } )
+            const { findings, supportsOAuth } = await OAuthProber.probe( { endpoint: TEST_ENDPOINT, timeout: 5000 } )
 
             expect( supportsOAuth ).toBe( true )
 
-            const hasAuth002 = messages
-                .some( ( msg ) => msg.includes( 'AUTH-002' ) )
+            const hasAuth002 = findings
+                .some( ( finding ) => finding['code'] === 'AUTH-002' )
 
             expect( hasAuth002 ).toBe( true )
         } )

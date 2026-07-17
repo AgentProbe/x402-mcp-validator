@@ -18,35 +18,35 @@ class OAuthProber {
 
 
     static async probe( { endpoint, timeout } ) {
-        const messages = []
+        const findings = []
         const oauthEntries = { ...EMPTY_OAUTH_ENTRIES }
 
-        const { protectedResource, prmUrl } = await OAuthProber.#probeProtectedResourceMetadata( { endpoint, timeout, messages } )
+        const { protectedResource, prmUrl } = await OAuthProber.#probeProtectedResourceMetadata( { endpoint, timeout, findings } )
         const issuer = OAuthProber.#extractIssuer( { protectedResource } )
 
         if( prmUrl ) {
             oauthEntries['protectedResourceMetadataUrl'] = prmUrl
         }
 
-        const { authServerMetadata, discoveryUrl } = await OAuthProber.#probeAuthServerMetadata( { issuer, timeout, messages } )
+        const { authServerMetadata, discoveryUrl } = await OAuthProber.#probeAuthServerMetadata( { issuer, timeout, findings } )
 
-        OAuthProber.#validatePkce( { authServerMetadata, messages } )
-        OAuthProber.#validateClientRegistration( { authServerMetadata, messages } )
-        OAuthProber.#validateScopes( { protectedResource, authServerMetadata, messages } )
+        OAuthProber.#validatePkce( { authServerMetadata, findings } )
+        OAuthProber.#validateClientRegistration( { authServerMetadata, findings } )
+        OAuthProber.#validateScopes( { protectedResource, authServerMetadata, findings } )
 
         const { supportsOAuth } = OAuthProber.#assessOverall( { protectedResource, authServerMetadata } )
 
         if( supportsOAuth ) {
-            messages.push( 'AUTH-010 oauth: Server requires authentication' )
+            findings.push( { code: 'AUTH-010', severity: 'info', location: 'oauth', message: 'Server requires authentication' } )
         }
 
         OAuthProber.#populateEntries( { oauthEntries, protectedResource, authServerMetadata } )
 
-        return { messages, supportsOAuth, protectedResource, authServer: authServerMetadata, oauthEntries }
+        return { findings, supportsOAuth, protectedResource, authServer: authServerMetadata, oauthEntries }
     }
 
 
-    static async #probeProtectedResourceMetadata( { endpoint, timeout, messages } ) {
+    static async #probeProtectedResourceMetadata( { endpoint, timeout, findings } ) {
         const { origin, pathname } = new URL( endpoint )
 
         const pathSpecificUrl = `${origin}/.well-known/oauth-protected-resource${pathname}`
@@ -62,7 +62,7 @@ class OAuthProber {
         }
 
         if( !metadata['authorization_servers'] || !Array.isArray( metadata['authorization_servers'] ) || metadata['authorization_servers'].length === 0 ) {
-            messages.push( 'AUTH-004 oauth: Missing authorization_servers in Protected Resource Metadata' )
+            findings.push( { code: 'AUTH-004', severity: 'info', location: 'oauth', message: 'Missing authorization_servers in Protected Resource Metadata' } )
         }
 
         return { protectedResource: metadata, prmUrl }
@@ -86,7 +86,7 @@ class OAuthProber {
     }
 
 
-    static async #probeAuthServerMetadata( { issuer, timeout, messages } ) {
+    static async #probeAuthServerMetadata( { issuer, timeout, findings } ) {
         if( !issuer ) {
             return { authServerMetadata: null, discoveryUrl: null }
         }
@@ -96,7 +96,7 @@ class OAuthProber {
         const { metadata, url: discoveryUrl } = await OAuthProber.#tryFetchJson( { urls, timeout } )
 
         if( !metadata ) {
-            messages.push( 'AUTH-002 oauth: Authorization Server Metadata not found (RFC8414)' )
+            findings.push( { code: 'AUTH-002', severity: 'info', location: 'oauth', message: 'Authorization Server Metadata not found (RFC8414)' } )
 
             return { authServerMetadata: null, discoveryUrl: null }
         }
@@ -107,7 +107,7 @@ class OAuthProber {
             .filter( ( field ) => !metadata[field] )
 
         if( missingFields.length > 0 ) {
-            messages.push( `AUTH-002 oauth: Authorization Server Metadata incomplete — missing ${missingFields.join( ', ' )}` )
+            findings.push( { code: 'AUTH-002', severity: 'info', location: 'oauth', message: `Authorization Server Metadata incomplete — missing ${missingFields.join( ', ' )}` } )
         }
 
         return { authServerMetadata: metadata, discoveryUrl }
@@ -137,7 +137,7 @@ class OAuthProber {
     }
 
 
-    static #validatePkce( { authServerMetadata, messages } ) {
+    static #validatePkce( { authServerMetadata, findings } ) {
         if( !authServerMetadata ) {
             return
         }
@@ -145,12 +145,12 @@ class OAuthProber {
         const methods = authServerMetadata['code_challenge_methods_supported']
 
         if( !Array.isArray( methods ) || !methods.includes( 'S256' ) ) {
-            messages.push( 'AUTH-003 oauth: PKCE S256 not supported (MCP Spec MUST)' )
+            findings.push( { code: 'AUTH-003', severity: 'info', location: 'oauth', message: 'PKCE S256 not supported (MCP Spec MUST)' } )
         }
     }
 
 
-    static #validateClientRegistration( { authServerMetadata, messages } ) {
+    static #validateClientRegistration( { authServerMetadata, findings } ) {
         if( !authServerMetadata ) {
             return
         }
@@ -159,12 +159,12 @@ class OAuthProber {
         const hasClientIdMetadataDoc = authServerMetadata['client_id_metadata_document_supported'] === true
 
         if( !hasRegistrationEndpoint && !hasClientIdMetadataDoc ) {
-            messages.push( 'AUTH-005 oauth: No client registration mechanism available' )
+            findings.push( { code: 'AUTH-005', severity: 'info', location: 'oauth', message: 'No client registration mechanism available' } )
         }
     }
 
 
-    static #validateScopes( { protectedResource, authServerMetadata, messages } ) {
+    static #validateScopes( { protectedResource, authServerMetadata, findings } ) {
         const prmScopes = ( protectedResource && Array.isArray( protectedResource['scopes_supported'] ) )
             ? protectedResource['scopes_supported']
             : []
@@ -176,7 +176,7 @@ class OAuthProber {
         const allScopes = [ ...new Set( [ ...prmScopes, ...asScopes ] ) ]
 
         if( allScopes.length > 0 ) {
-            messages.push( `AUTH-011 oauth: Scopes found — ${allScopes.join( ', ' )}` )
+            findings.push( { code: 'AUTH-011', severity: 'info', location: 'oauth', message: `Scopes found — ${allScopes.join( ', ' )}` } )
         }
     }
 

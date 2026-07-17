@@ -15,7 +15,7 @@ npm i
 ```javascript
 import { McpServerValidator } from 'x402-mcp-validator'
 
-const { status, messages, categories, entries } = await McpServerValidator.start( {
+const { status, findings, categories, entries } = await McpServerValidator.start( {
     endpoint: 'https://your-mcp-server.example.com/mcp',
     timeout: 15000
 } )
@@ -79,7 +79,7 @@ Connects to an MCP server, discovers capabilities, probes for x402 payment suppo
 ```javascript
 import { McpServerValidator } from 'x402-mcp-validator'
 
-const { status, messages, categories, entries } = await McpServerValidator.start( {
+const { status, findings, categories, entries } = await McpServerValidator.start( {
     endpoint: 'https://your-mcp-server.example.com/mcp',
     timeout: 15000
 } )
@@ -93,13 +93,13 @@ console.log( `Networks: ${JSON.stringify( entries['x402']['networks'] )}` )
 **Returns**
 
 ```javascript
-{ status, messages, categories, entries }
+{ status, findings, categories, entries }
 ```
 
 | Key | Type | Description |
 |-----|------|-------------|
-| status | boolean | `true` when no messages were generated |
-| messages | array of strings | Warning and error messages with error codes |
+| status | boolean | `true` when no findings were generated |
+| findings | array of objects | Structured findings `{ code, severity, location, message }`. `severity` is one of `error`, `warning`, `info` |
 | categories | object | 12 boolean flags (see [Categories](#categories)) |
 | entries | object | 13 data fields (see [Entries](#entries)) |
 
@@ -189,101 +189,114 @@ console.log( `Tools removed: ${diff['tools']['removed'].length}` )
 
 ## Validation Codes
 
-### VAL — Input Validation
+Every validator in the AgentProbe fleet emits findings as `{ code, severity, location, message }`
+objects. `code` is a globally-unique `PREFIX-NNN` string; `severity` is one of `error`, `warning`,
+`info`. The two generic prefixes `VAL` and `CON` are de-collided across the fleet by disjoint number
+bands — this validator owns the `VAL-2xx` and `CON-2xx` bands.
+
+### VAL — Input Validation (`VAL-2xx`)
 
 | Code | Severity | Description |
 |------|----------|-------------|
-| VAL-001 | ERROR | endpoint: Missing value |
-| VAL-002 | ERROR | endpoint: Must be a string |
-| VAL-003 | ERROR | endpoint: Must not be empty |
-| VAL-004 | ERROR | endpoint: Must be a valid URL |
-| VAL-005 | ERROR | timeout: Must be a number |
-| VAL-006 | ERROR | timeout: Must be greater than 0 |
-| VAL-010 | ERROR | before: Missing value |
-| VAL-011 | ERROR | before: Must be an object |
-| VAL-012 | ERROR | before: Missing categories or entries |
-| VAL-013 | ERROR | after: Missing value |
-| VAL-014 | ERROR | after: Must be an object |
-| VAL-015 | ERROR | after: Missing categories or entries |
+| VAL-201 | error | endpoint: Missing value |
+| VAL-202 | error | endpoint: Must be a string |
+| VAL-203 | error | endpoint: Must not be empty |
+| VAL-204 | error | endpoint: Must be a valid URL |
+| VAL-205 | error | timeout: Must be a number |
+| VAL-206 | error | timeout: Must be greater than 0 |
+| VAL-210 | error | before: Missing value |
+| VAL-211 | error | before: Must be an object |
+| VAL-212 | error | before: Missing categories or entries |
+| VAL-213 | error | after: Missing value |
+| VAL-214 | error | after: Must be an object |
+| VAL-215 | error | after: Missing categories or entries |
 
-### CON — MCP Connection
+### CON — MCP Connection (`CON-2xx`)
 
 | Code | Severity | Description |
 |------|----------|-------------|
-| CON-001 | ERROR | endpoint: Server is not reachable |
-| CON-004 | ERROR | mcp: Initialize handshake failed |
-| CON-008 | WARNING | tools/list: Request failed |
-| CON-009 | WARNING | tools/list: Invalid response format |
-| CON-010 | INFO | resources/list: Request failed |
-| CON-011 | INFO | prompts/list: Request failed |
+| CON-201 | error | endpoint: Server is not reachable |
+| CON-204 | error | mcp: Initialize handshake failed |
+| CON-208 | warning | tools/list: Request failed |
+| CON-209 | warning | tools/list: Invalid response format |
+| CON-210 | info | resources/list: Request failed |
+| CON-211 | info | prompts/list: Request failed |
 
 ### PAY — Payment Validation
 
 | Code | Severity | Description |
 |------|----------|-------------|
-| PAY-001 | ERROR | restrictedCalls: PaymentRequired data is missing |
-| PAY-002 | ERROR | restrictedCalls: PaymentRequired is not an object |
-| PAY-010 | ERROR | x402Version: Missing required field |
-| PAY-011 | ERROR | x402Version: Must be a number |
-| PAY-012 | ERROR | x402Version: Expected 2 |
-| PAY-020 | ERROR | resource: Must be a string or object |
-| PAY-021 | ERROR | resource: Must not be empty / resource.url: Missing value |
-| PAY-022 | ERROR | resource.url: Must be a string |
-| PAY-023 | ERROR | resource.url: Invalid URL format |
-| PAY-024 | ERROR | resource: Unknown field |
-| PAY-030 | ERROR | accepts: Missing required field |
-| PAY-031 | ERROR | accepts: Must be an array |
-| PAY-032 | ERROR | accepts: Is empty array |
-| PAY-040 | ERROR | scheme: Missing value |
-| PAY-041 | ERROR | scheme: Must be a string |
-| PAY-042 | ERROR | scheme: Invalid value |
-| PAY-050 | ERROR | network: Missing value |
-| PAY-051 | ERROR | network: Must be a string |
-| PAY-052 | ERROR | network: Unknown prefix |
-| PAY-053 | ERROR | network: Missing chain ID after prefix |
-| PAY-060 | ERROR | maxAmountRequired: Missing value |
-| PAY-061 | ERROR | maxAmountRequired: Must be a string |
-| PAY-062 | ERROR | maxAmountRequired: Must be a numeric string |
-| PAY-063 | ERROR | maxAmountRequired: Must be positive |
-| PAY-070 | ERROR | asset: Missing value |
-| PAY-071 | ERROR | asset: Must be a string |
-| PAY-072 | ERROR | asset: Invalid EVM address format |
-| PAY-080 | ERROR | payTo: Missing value |
-| PAY-081 | ERROR | payTo: Must be a string |
-| PAY-082 | ERROR | payTo: Invalid EVM address format |
-| PAY-083 | WARNING | payTo: Not checksummed |
-| PAY-090 | ERROR | maxTimeoutSeconds: Missing value |
-| PAY-091 | ERROR | maxTimeoutSeconds: Must be a number |
-| PAY-092 | ERROR | maxTimeoutSeconds: Must be greater than 0 |
-| PAY-100 | INFO | extra: Must be an object |
-| PAY-101 | INFO | extra.name: Missing (recommended for EVM) |
-| PAY-102 | INFO | extra.version: Missing (recommended for EIP-3009) |
+| PAY-001 | error | restrictedCalls: PaymentRequired data is missing |
+| PAY-002 | error | restrictedCalls: PaymentRequired is not an object |
+| PAY-010 | error | x402Version: Missing required field |
+| PAY-011 | error | x402Version: Must be a number |
+| PAY-012 | error | x402Version: Expected 2 |
+| PAY-020 | error | resource: Must be a string or object |
+| PAY-021 | error | resource: Must not be empty / resource.url: Missing value |
+| PAY-022 | error | resource.url: Must be a string |
+| PAY-023 | error | resource.url: Invalid URL format |
+| PAY-024 | warning | resource: Unknown field |
+| PAY-030 | error | accepts: Missing required field |
+| PAY-031 | error | accepts: Must be an array |
+| PAY-032 | error | accepts: Is empty array |
+| PAY-040 | error | scheme: Missing value |
+| PAY-041 | error | scheme: Must be a string |
+| PAY-042 | error | scheme: Invalid value |
+| PAY-050 | error | network: Missing value |
+| PAY-051 | error | network: Must be a string |
+| PAY-052 | error | network: Unknown prefix |
+| PAY-053 | error | network: Missing chain ID after prefix |
+| PAY-060 | error | amount: Missing value |
+| PAY-061 | error | amount: Must be a string |
+| PAY-062 | error | amount: Must be a numeric string |
+| PAY-063 | error | amount: Must be positive |
+| PAY-070 | error | asset: Missing value |
+| PAY-071 | error | asset: Must be a string |
+| PAY-072 | error | asset: Invalid EVM address format |
+| PAY-080 | error | payTo: Missing value |
+| PAY-081 | error | payTo: Must be a string |
+| PAY-082 | error | payTo: Invalid EVM address format |
+| PAY-083 | warning | payTo: Not checksummed |
+| PAY-090 | error | maxTimeoutSeconds: Missing value |
+| PAY-091 | error | maxTimeoutSeconds: Must be a number |
+| PAY-092 | error | maxTimeoutSeconds: Must be greater than 0 |
+| PAY-100 | info | extra: Must be an object |
+| PAY-101 | info | extra.name: Missing (recommended for EVM) |
+| PAY-102 | info | extra.version: Missing (recommended for EIP-3009) |
 
 ### PRB — Probe
 
 | Code | Severity | Description |
 |------|----------|-------------|
-| PRB-004 | INFO | probe: Unexpected exception |
-| PRB-005 | INFO | probe: No tools available to probe |
+| PRB-004 | info | probe(tool): Unexpected exception |
+| PRB-005 | info | probe: No tools available to probe |
+| PRB-006 | warning | probe(tool): x402 detected via legacy error code |
+| PRB-007 | info | probe(tool): x402 payment detected (spec-conformant) |
+| PRB-008 | warning | probe(tool): x402 detected via HTTP 402 (transport mixing) |
+| PRB-009 | warning | probe(tool): x402 detected via non-standard structuredContent |
+| PRB-010 | info | probe(tool): x402 API endpoint redirect detected |
 
 ### AUTH — OAuth
 
 | Code | Severity | Description |
 |------|----------|-------------|
-| AUTH-002 | INFO | Authorization Server Metadata not found or incomplete |
-| AUTH-003 | INFO | PKCE S256 not supported (MCP Spec MUST) |
-| AUTH-004 | INFO | Missing authorization_servers in Protected Resource Metadata |
-| AUTH-005 | INFO | No client registration mechanism available |
-| AUTH-010 | INFO | Server requires authentication |
-| AUTH-011 | INFO | Scopes found |
+| AUTH-002 | info | Authorization Server Metadata not found or incomplete |
+| AUTH-003 | info | PKCE S256 not supported (MCP Spec MUST) |
+| AUTH-004 | info | Missing authorization_servers in Protected Resource Metadata |
+| AUTH-005 | info | No client registration mechanism available |
+| AUTH-010 | info | Server requires authentication |
+| AUTH-011 | info | Scopes found |
 
 ### CMP — Comparison
 
+The `.compare()` diff engine still emits `CMP-*` codes; its migration to the structured finding
+object is tracked separately.
+
 | Code | Severity | Description |
 |------|----------|-------------|
-| CMP-001 | WARNING | Snapshots are from different servers |
-| CMP-002 | WARNING | Before snapshot has no timestamp |
-| CMP-003 | WARNING | After snapshot is older than before |
+| CMP-001 | warning | Snapshots are from different servers |
+| CMP-002 | warning | Before snapshot has no timestamp |
+| CMP-003 | warning | After snapshot is older than before |
 
 ## License
 

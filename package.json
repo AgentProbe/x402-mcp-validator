@@ -1,6 +1,6 @@
 {
     "name": "x402-mcp-validator",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "description": "Validates MCP servers: connects, discovers capabilities, probes x402 payment support, measures latency, and builds structured snapshots with comprehensive error reporting.",
     "main": "./src/index.mjs",
     "type": "module",

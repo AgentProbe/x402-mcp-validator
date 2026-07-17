@@ -5,83 +5,85 @@ import { Validation } from '../../src/task/Validation.mjs'
 describe( 'Validation', () => {
     describe( 'validationStart', () => {
         test( 'validates correct input', () => {
-            const { status, messages } = Validation
+            const { status, findings } = Validation
                 .validationStart( { endpoint: 'https://mcp.example.com/mcp', timeout: 10000 } )
 
             expect( status ).toBe( true )
-            expect( messages ).toHaveLength( 0 )
+            expect( findings ).toHaveLength( 0 )
         } )
 
 
         test( 'rejects missing endpoint', () => {
-            const { status, messages } = Validation
+            const { status, findings } = Validation
                 .validationStart( { endpoint: undefined, timeout: 10000 } )
 
             expect( status ).toBe( false )
-            expect( messages[ 0 ] ).toContain( 'VAL-001' )
+            expect( findings[ 0 ] ).toEqual( { code: 'VAL-201', severity: 'error', location: 'endpoint', message: 'Missing value' } )
         } )
 
 
         test( 'rejects non-string endpoint', () => {
-            const { status, messages } = Validation
+            const { status, findings } = Validation
                 .validationStart( { endpoint: 123, timeout: 10000 } )
 
             expect( status ).toBe( false )
-            expect( messages[ 0 ] ).toContain( 'VAL-002' )
+            expect( findings[ 0 ]['code'] ).toBe( 'VAL-202' )
+            expect( findings[ 0 ]['severity'] ).toBe( 'error' )
         } )
 
 
         test( 'rejects empty endpoint', () => {
-            const { status, messages } = Validation
+            const { status, findings } = Validation
                 .validationStart( { endpoint: '   ', timeout: 10000 } )
 
             expect( status ).toBe( false )
-            expect( messages[ 0 ] ).toContain( 'VAL-003' )
+            expect( findings[ 0 ]['code'] ).toBe( 'VAL-203' )
         } )
 
 
         test( 'rejects invalid URL', () => {
-            const { status, messages } = Validation
+            const { status, findings } = Validation
                 .validationStart( { endpoint: 'not-a-url', timeout: 10000 } )
 
             expect( status ).toBe( false )
-            expect( messages[ 0 ] ).toContain( 'VAL-004' )
+            expect( findings[ 0 ]['code'] ).toBe( 'VAL-204' )
         } )
 
 
         test( 'rejects non-number timeout', () => {
-            const { status, messages } = Validation
+            const { status, findings } = Validation
                 .validationStart( { endpoint: 'https://mcp.example.com/mcp', timeout: 'fast' } )
 
             expect( status ).toBe( false )
-            expect( messages[ 0 ] ).toContain( 'VAL-005' )
+            expect( findings[ 0 ]['code'] ).toBe( 'VAL-205' )
+            expect( findings[ 0 ]['location'] ).toBe( 'timeout' )
         } )
 
 
         test( 'rejects zero timeout', () => {
-            const { status, messages } = Validation
+            const { status, findings } = Validation
                 .validationStart( { endpoint: 'https://mcp.example.com/mcp', timeout: 0 } )
 
             expect( status ).toBe( false )
-            expect( messages[ 0 ] ).toContain( 'VAL-006' )
+            expect( findings[ 0 ]['code'] ).toBe( 'VAL-206' )
         } )
 
 
         test( 'rejects negative timeout', () => {
-            const { status, messages } = Validation
+            const { status, findings } = Validation
                 .validationStart( { endpoint: 'https://mcp.example.com/mcp', timeout: -5 } )
 
             expect( status ).toBe( false )
-            expect( messages[ 0 ] ).toContain( 'VAL-006' )
+            expect( findings[ 0 ]['code'] ).toBe( 'VAL-206' )
         } )
 
 
         test( 'accepts undefined timeout as optional', () => {
-            const { status, messages } = Validation
+            const { status, findings } = Validation
                 .validationStart( { endpoint: 'https://mcp.example.com/mcp', timeout: undefined } )
 
             expect( status ).toBe( true )
-            expect( messages ).toHaveLength( 0 )
+            expect( findings ).toHaveLength( 0 )
         } )
     } )
 
@@ -107,7 +109,7 @@ describe( 'Validation', () => {
                 .validationCompare( { before: undefined, after: validSnapshot } )
 
             expect( status ).toBe( false )
-            expect( messages[ 0 ] ).toContain( 'VAL-010' )
+            expect( messages[ 0 ] ).toContain( 'VAL-210' )
         } )
 
 
@@ -116,7 +118,7 @@ describe( 'Validation', () => {
                 .validationCompare( { before: null, after: validSnapshot } )
 
             expect( status ).toBe( false )
-            expect( messages[ 0 ] ).toContain( 'VAL-011' )
+            expect( messages[ 0 ] ).toContain( 'VAL-211' )
         } )
 
 
@@ -125,7 +127,7 @@ describe( 'Validation', () => {
                 .validationCompare( { before: [], after: validSnapshot } )
 
             expect( status ).toBe( false )
-            expect( messages[ 0 ] ).toContain( 'VAL-011' )
+            expect( messages[ 0 ] ).toContain( 'VAL-211' )
         } )
 
 
@@ -134,7 +136,7 @@ describe( 'Validation', () => {
                 .validationCompare( { before: { entries: {} }, after: validSnapshot } )
 
             expect( status ).toBe( false )
-            expect( messages[ 0 ] ).toContain( 'VAL-012' )
+            expect( messages[ 0 ] ).toContain( 'VAL-212' )
         } )
 
 
@@ -143,7 +145,7 @@ describe( 'Validation', () => {
                 .validationCompare( { before: validSnapshot, after: undefined } )
 
             expect( status ).toBe( false )
-            expect( messages[ 0 ] ).toContain( 'VAL-013' )
+            expect( messages[ 0 ] ).toContain( 'VAL-213' )
         } )
 
 
@@ -152,7 +154,7 @@ describe( 'Validation', () => {
                 .validationCompare( { before: validSnapshot, after: null } )
 
             expect( status ).toBe( false )
-            expect( messages[ 0 ] ).toContain( 'VAL-014' )
+            expect( messages[ 0 ] ).toContain( 'VAL-214' )
         } )
 
 
@@ -161,7 +163,7 @@ describe( 'Validation', () => {
                 .validationCompare( { before: validSnapshot, after: { categories: {} } } )
 
             expect( status ).toBe( false )
-            expect( messages[ 0 ] ).toContain( 'VAL-015' )
+            expect( messages[ 0 ] ).toContain( 'VAL-215' )
         } )
     } )
 

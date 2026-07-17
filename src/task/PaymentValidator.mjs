@@ -7,7 +7,7 @@ class PaymentValidator {
 
 
     static validate( { restrictedCalls, paymentOptions } ) {
-        const messages = []
+        const findings = []
         const validPaymentOptions = []
 
         restrictedCalls
@@ -15,48 +15,48 @@ class PaymentValidator {
                 const { paymentRequired } = restrictedCall
 
                 if( paymentRequired === undefined || paymentRequired === null ) {
-                    messages.push( `PAY-001 restrictedCalls[${i}]: PaymentRequired data is missing` )
+                    findings.push( { code: 'PAY-001', severity: 'error', location: `restrictedCalls[${i}]`, message: 'PaymentRequired data is missing' } )
 
                     return
                 }
 
                 if( typeof paymentRequired !== 'object' || Array.isArray( paymentRequired ) ) {
-                    messages.push( `PAY-002 restrictedCalls[${i}]: PaymentRequired is not an object` )
+                    findings.push( { code: 'PAY-002', severity: 'error', location: `restrictedCalls[${i}]`, message: 'PaymentRequired is not an object' } )
 
                     return
                 }
 
-                PaymentValidator.#validateVersion( { paymentRequired, index: i, messages } )
-                PaymentValidator.#validateResource( { paymentRequired, index: i, messages } )
-                PaymentValidator.#validateAccepts( { paymentRequired, index: i, messages, validPaymentOptions } )
+                PaymentValidator.#validateVersion( { paymentRequired, index: i, findings } )
+                PaymentValidator.#validateResource( { paymentRequired, index: i, findings } )
+                PaymentValidator.#validateAccepts( { paymentRequired, index: i, findings, validPaymentOptions } )
             } )
 
-        return { messages, validPaymentOptions }
+        return { findings, validPaymentOptions }
     }
 
 
-    static #validateVersion( { paymentRequired, index, messages } ) {
+    static #validateVersion( { paymentRequired, index, findings } ) {
         const prefix = `restrictedCalls[${index}]`
 
         if( paymentRequired['x402Version'] === undefined ) {
-            messages.push( `PAY-010 ${prefix}.x402Version: Missing required field` )
+            findings.push( { code: 'PAY-010', severity: 'error', location: `${prefix}.x402Version`, message: 'Missing required field' } )
 
             return
         }
 
         if( typeof paymentRequired['x402Version'] !== 'number' ) {
-            messages.push( `PAY-011 ${prefix}.x402Version: Must be a number` )
+            findings.push( { code: 'PAY-011', severity: 'error', location: `${prefix}.x402Version`, message: 'Must be a number' } )
 
             return
         }
 
         if( paymentRequired['x402Version'] !== 2 ) {
-            messages.push( `PAY-012 ${prefix}.x402Version: Expected 2, got ${paymentRequired['x402Version']}` )
+            findings.push( { code: 'PAY-012', severity: 'error', location: `${prefix}.x402Version`, message: `Expected 2, got ${paymentRequired['x402Version']}` } )
         }
     }
 
 
-    static #validateResource( { paymentRequired, index, messages } ) {
+    static #validateResource( { paymentRequired, index, findings } ) {
         const prefix = `restrictedCalls[${index}]`
         const resource = paymentRequired['resource']
 
@@ -65,40 +65,40 @@ class PaymentValidator {
         }
 
         if( typeof resource === 'string' ) {
-            PaymentValidator.#validateResourceString( { resource, prefix, messages } )
+            PaymentValidator.#validateResourceString( { resource, prefix, findings } )
 
             return
         }
 
         if( typeof resource !== 'object' || Array.isArray( resource ) ) {
-            messages.push( `PAY-020 ${prefix}.resource: Must be a string or object` )
+            findings.push( { code: 'PAY-020', severity: 'error', location: `${prefix}.resource`, message: 'Must be a string or object' } )
 
             return
         }
 
-        PaymentValidator.#validateResourceObject( { resource, prefix, messages } )
+        PaymentValidator.#validateResourceObject( { resource, prefix, findings } )
     }
 
 
-    static #validateResourceString( { resource, prefix, messages } ) {
+    static #validateResourceString( { resource, prefix, findings } ) {
         if( resource.trim() === '' ) {
-            messages.push( `PAY-021 ${prefix}.resource: Must not be empty` )
+            findings.push( { code: 'PAY-021', severity: 'error', location: `${prefix}.resource`, message: 'Must not be empty' } )
         }
     }
 
 
-    static #validateResourceObject( { resource, prefix, messages } ) {
+    static #validateResourceObject( { resource, prefix, findings } ) {
         const url = resource['url']
 
         if( url === undefined ) {
-            messages.push( `PAY-021 ${prefix}.resource.url: Missing value` )
+            findings.push( { code: 'PAY-021', severity: 'error', location: `${prefix}.resource.url`, message: 'Missing value' } )
         } else if( typeof url !== 'string' ) {
-            messages.push( `PAY-022 ${prefix}.resource.url: Must be a string` )
+            findings.push( { code: 'PAY-022', severity: 'error', location: `${prefix}.resource.url`, message: 'Must be a string' } )
         } else {
             try {
                 new URL( url )
             } catch( _e ) {
-                messages.push( `PAY-023 ${prefix}.resource.url: Invalid URL format` )
+                findings.push( { code: 'PAY-023', severity: 'error', location: `${prefix}.resource.url`, message: 'Invalid URL format' } )
             }
         }
 
@@ -107,36 +107,36 @@ class PaymentValidator {
         Object.keys( resource )
             .filter( ( key ) => !knownFields.includes( key ) )
             .forEach( ( key ) => {
-                messages.push( `PAY-024 ${prefix}.resource.${key}: Unknown field` )
+                findings.push( { code: 'PAY-024', severity: 'warning', location: `${prefix}.resource.${key}`, message: 'Unknown field' } )
             } )
     }
 
 
-    static #validateAccepts( { paymentRequired, index, messages, validPaymentOptions } ) {
+    static #validateAccepts( { paymentRequired, index, findings, validPaymentOptions } ) {
         const prefix = `restrictedCalls[${index}]`
         const accepts = paymentRequired['accepts']
 
         if( accepts === undefined ) {
-            messages.push( `PAY-030 ${prefix}.accepts: Missing required field` )
+            findings.push( { code: 'PAY-030', severity: 'error', location: `${prefix}.accepts`, message: 'Missing required field' } )
 
             return
         }
 
         if( !Array.isArray( accepts ) ) {
-            messages.push( `PAY-031 ${prefix}.accepts: Must be an array` )
+            findings.push( { code: 'PAY-031', severity: 'error', location: `${prefix}.accepts`, message: 'Must be an array' } )
 
             return
         }
 
         if( accepts.length === 0 ) {
-            messages.push( `PAY-032 ${prefix}.accepts: Is empty array` )
+            findings.push( { code: 'PAY-032', severity: 'error', location: `${prefix}.accepts`, message: 'Is empty array' } )
 
             return
         }
 
         accepts
             .forEach( ( option, j ) => {
-                const { valid } = PaymentValidator.#validatePaymentOption( { option, callIndex: index, optIndex: j, messages } )
+                const { valid } = PaymentValidator.#validatePaymentOption( { option, callIndex: index, optIndex: j, findings } )
 
                 if( valid ) {
                     validPaymentOptions.push( option )
@@ -145,70 +145,70 @@ class PaymentValidator {
     }
 
 
-    static #validatePaymentOption( { option, callIndex, optIndex, messages } ) {
+    static #validatePaymentOption( { option, callIndex, optIndex, findings } ) {
         const prefix = `restrictedCalls[${callIndex}].accepts[${optIndex}]`
-        const initialLength = messages.length
+        const initialLength = findings.length
 
-        PaymentValidator.#validateScheme( { option, prefix, messages } )
-        PaymentValidator.#validateNetworkField( { option, prefix, messages } )
-        PaymentValidator.#validateAmount( { amount: option['amount'], prefix: `${prefix}.amount`, messages } )
-        PaymentValidator.#validateAsset( { option, prefix, messages } )
-        PaymentValidator.#validatePayTo( { option, prefix, messages } )
-        PaymentValidator.#validateMaxTimeout( { option, prefix, messages } )
-        PaymentValidator.#validateExtra( { option, prefix, messages } )
+        PaymentValidator.#validateScheme( { option, prefix, findings } )
+        PaymentValidator.#validateNetworkField( { option, prefix, findings } )
+        PaymentValidator.#validateAmount( { amount: option['amount'], prefix: `${prefix}.amount`, findings } )
+        PaymentValidator.#validateAsset( { option, prefix, findings } )
+        PaymentValidator.#validatePayTo( { option, prefix, findings } )
+        PaymentValidator.#validateMaxTimeout( { option, prefix, findings } )
+        PaymentValidator.#validateExtra( { option, prefix, findings } )
 
-        const valid = messages.length === initialLength
+        const valid = findings.length === initialLength
 
         return { valid }
     }
 
 
-    static #validateScheme( { option, prefix, messages } ) {
+    static #validateScheme( { option, prefix, findings } ) {
         const scheme = option['scheme']
 
         if( scheme === undefined ) {
-            messages.push( `PAY-040 ${prefix}.scheme: Missing value` )
+            findings.push( { code: 'PAY-040', severity: 'error', location: `${prefix}.scheme`, message: 'Missing value' } )
 
             return
         }
 
         if( typeof scheme !== 'string' ) {
-            messages.push( `PAY-041 ${prefix}.scheme: Must be a string` )
+            findings.push( { code: 'PAY-041', severity: 'error', location: `${prefix}.scheme`, message: 'Must be a string' } )
 
             return
         }
 
         if( !ALLOWED_SCHEMES.includes( scheme ) ) {
-            messages.push( `PAY-042 ${prefix}.scheme: Invalid value "${scheme}". Allowed are exact` )
+            findings.push( { code: 'PAY-042', severity: 'error', location: `${prefix}.scheme`, message: `Invalid value "${scheme}". Allowed are exact` } )
         }
     }
 
 
-    static #validateNetworkField( { option, prefix, messages } ) {
+    static #validateNetworkField( { option, prefix, findings } ) {
         const network = option['network']
 
         if( network === undefined ) {
-            messages.push( `PAY-050 ${prefix}.network: Missing value` )
+            findings.push( { code: 'PAY-050', severity: 'error', location: `${prefix}.network`, message: 'Missing value' } )
 
             return
         }
 
         if( typeof network !== 'string' ) {
-            messages.push( `PAY-051 ${prefix}.network: Must be a string` )
+            findings.push( { code: 'PAY-051', severity: 'error', location: `${prefix}.network`, message: 'Must be a string' } )
 
             return
         }
 
-        PaymentValidator.#validateNetwork( { network, prefix: `${prefix}.network`, messages } )
+        PaymentValidator.#validateNetwork( { network, prefix: `${prefix}.network`, findings } )
     }
 
 
-    static #validateNetwork( { network, prefix, messages } ) {
+    static #validateNetwork( { network, prefix, findings } ) {
         const matchedPrefix = KNOWN_NETWORK_PREFIXES
             .find( ( p ) => network.startsWith( p ) )
 
         if( !matchedPrefix ) {
-            messages.push( `PAY-052 ${prefix}: Unknown prefix "${network}". Expected "eip155:*" or "solana:*"` )
+            findings.push( { code: 'PAY-052', severity: 'error', location: prefix, message: `Unknown prefix "${network}". Expected "eip155:*" or "solana:*"` } )
 
             return
         }
@@ -216,20 +216,20 @@ class PaymentValidator {
         const afterPrefix = network.slice( matchedPrefix.length )
 
         if( afterPrefix === '' ) {
-            messages.push( `PAY-053 ${prefix}: Missing chain ID after prefix` )
+            findings.push( { code: 'PAY-053', severity: 'error', location: prefix, message: 'Missing chain ID after prefix' } )
         }
     }
 
 
-    static #validateAmount( { amount, prefix, messages } ) {
+    static #validateAmount( { amount, prefix, findings } ) {
         if( amount === undefined ) {
-            messages.push( `PAY-060 ${prefix}: Missing value` )
+            findings.push( { code: 'PAY-060', severity: 'error', location: prefix, message: 'Missing value' } )
 
             return
         }
 
         if( typeof amount !== 'string' ) {
-            messages.push( `PAY-061 ${prefix}: Must be a string` )
+            findings.push( { code: 'PAY-061', severity: 'error', location: prefix, message: 'Must be a string' } )
 
             return
         }
@@ -237,67 +237,67 @@ class PaymentValidator {
         const parsed = Number( amount )
 
         if( Number.isNaN( parsed ) ) {
-            messages.push( `PAY-062 ${prefix}: Must be a numeric string` )
+            findings.push( { code: 'PAY-062', severity: 'error', location: prefix, message: 'Must be a numeric string' } )
 
             return
         }
 
         if( parsed <= 0 ) {
-            messages.push( `PAY-063 ${prefix}: Must be positive` )
+            findings.push( { code: 'PAY-063', severity: 'error', location: prefix, message: 'Must be positive' } )
         }
     }
 
 
-    static #validateAsset( { option, prefix, messages } ) {
+    static #validateAsset( { option, prefix, findings } ) {
         const asset = option['asset']
 
         if( asset === undefined ) {
-            messages.push( `PAY-070 ${prefix}.asset: Missing value` )
+            findings.push( { code: 'PAY-070', severity: 'error', location: `${prefix}.asset`, message: 'Missing value' } )
 
             return
         }
 
         if( typeof asset !== 'string' ) {
-            messages.push( `PAY-071 ${prefix}.asset: Must be a string` )
+            findings.push( { code: 'PAY-071', severity: 'error', location: `${prefix}.asset`, message: 'Must be a string' } )
 
             return
         }
 
-        PaymentValidator.#validateEvmAddress( { address: asset, field: 'asset', prefix, messages } )
+        PaymentValidator.#validateEvmAddress( { address: asset, field: 'asset', prefix, findings } )
     }
 
 
-    static #validatePayTo( { option, prefix, messages } ) {
+    static #validatePayTo( { option, prefix, findings } ) {
         const payTo = option['payTo']
 
         if( payTo === undefined ) {
-            messages.push( `PAY-080 ${prefix}.payTo: Missing value` )
+            findings.push( { code: 'PAY-080', severity: 'error', location: `${prefix}.payTo`, message: 'Missing value' } )
 
             return
         }
 
         if( typeof payTo !== 'string' ) {
-            messages.push( `PAY-081 ${prefix}.payTo: Must be a string` )
+            findings.push( { code: 'PAY-081', severity: 'error', location: `${prefix}.payTo`, message: 'Must be a string' } )
 
             return
         }
 
-        PaymentValidator.#validateEvmAddress( { address: payTo, field: 'payTo', prefix, messages } )
+        PaymentValidator.#validateEvmAddress( { address: payTo, field: 'payTo', prefix, findings } )
 
         if( EVM_ADDRESS_REGEX.test( payTo ) ) {
             const { checksummed } = PaymentValidator.#isChecksummed( { address: payTo } )
 
             if( !checksummed ) {
-                messages.push( `PAY-083 ${prefix}.payTo: Not checksummed` )
+                findings.push( { code: 'PAY-083', severity: 'warning', location: `${prefix}.payTo`, message: 'Not checksummed' } )
             }
         }
     }
 
 
-    static #validateEvmAddress( { address, field, prefix, messages } ) {
+    static #validateEvmAddress( { address, field, prefix, findings } ) {
         if( !EVM_ADDRESS_REGEX.test( address ) ) {
             const code = field === 'asset' ? 'PAY-072' : 'PAY-082'
-            messages.push( `${code} ${prefix}.${field}: Invalid EVM address format` )
+            findings.push( { code, severity: 'error', location: `${prefix}.${field}`, message: 'Invalid EVM address format' } )
         }
     }
 
@@ -309,28 +309,28 @@ class PaymentValidator {
     }
 
 
-    static #validateMaxTimeout( { option, prefix, messages } ) {
+    static #validateMaxTimeout( { option, prefix, findings } ) {
         const maxTimeoutSeconds = option['maxTimeoutSeconds']
 
         if( maxTimeoutSeconds === undefined ) {
-            messages.push( `PAY-090 ${prefix}.maxTimeoutSeconds: Missing value` )
+            findings.push( { code: 'PAY-090', severity: 'error', location: `${prefix}.maxTimeoutSeconds`, message: 'Missing value' } )
 
             return
         }
 
         if( typeof maxTimeoutSeconds !== 'number' ) {
-            messages.push( `PAY-091 ${prefix}.maxTimeoutSeconds: Must be a number` )
+            findings.push( { code: 'PAY-091', severity: 'error', location: `${prefix}.maxTimeoutSeconds`, message: 'Must be a number' } )
 
             return
         }
 
         if( maxTimeoutSeconds <= 0 ) {
-            messages.push( `PAY-092 ${prefix}.maxTimeoutSeconds: Must be greater than 0` )
+            findings.push( { code: 'PAY-092', severity: 'error', location: `${prefix}.maxTimeoutSeconds`, message: 'Must be greater than 0' } )
         }
     }
 
 
-    static #validateExtra( { option, prefix, messages } ) {
+    static #validateExtra( { option, prefix, findings } ) {
         const extra = option['extra']
 
         if( extra === undefined ) {
@@ -338,7 +338,7 @@ class PaymentValidator {
         }
 
         if( typeof extra !== 'object' || extra === null || Array.isArray( extra ) ) {
-            messages.push( `PAY-100 ${prefix}.extra: Must be an object` )
+            findings.push( { code: 'PAY-100', severity: 'info', location: `${prefix}.extra`, message: 'Must be an object' } )
 
             return
         }
@@ -347,11 +347,11 @@ class PaymentValidator {
         const isEvm = typeof network === 'string' && network.startsWith( 'eip155:' )
 
         if( isEvm && !extra['name'] ) {
-            messages.push( `PAY-101 ${prefix}.extra.name: Missing (recommended for EVM)` )
+            findings.push( { code: 'PAY-101', severity: 'info', location: `${prefix}.extra.name`, message: 'Missing (recommended for EVM)' } )
         }
 
         if( isEvm && !extra['version'] ) {
-            messages.push( `PAY-102 ${prefix}.extra.version: Missing (recommended for EIP-3009)` )
+            findings.push( { code: 'PAY-102', severity: 'info', location: `${prefix}.extra.version`, message: 'Missing (recommended for EIP-3009)' } )
         }
     }
 }

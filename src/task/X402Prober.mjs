@@ -2,25 +2,25 @@ class X402Prober {
 
 
     static async probe( { client, tools, timeout } ) {
-        const messages = []
+        const findings = []
         const restrictedCalls = []
         const paymentOptions = []
 
         if( !Array.isArray( tools ) || tools.length === 0 ) {
-            messages.push( 'PRB-005 probe: No tools available to probe' )
+            findings.push( { code: 'PRB-005', severity: 'info', location: 'probe', message: 'No tools available to probe' } )
 
-            return { status: false, messages, restrictedCalls, paymentOptions }
+            return { status: false, findings, restrictedCalls, paymentOptions }
         }
 
-        await X402Prober.#probeSequentially( { client, toolsToProbe: tools, index: 0, messages, restrictedCalls, paymentOptions, timeout } )
+        await X402Prober.#probeSequentially( { client, toolsToProbe: tools, index: 0, findings, restrictedCalls, paymentOptions, timeout } )
 
         const status = true
 
-        return { status, messages, restrictedCalls, paymentOptions }
+        return { status, findings, restrictedCalls, paymentOptions }
     }
 
 
-    static async #probeSequentially( { client, toolsToProbe, index, messages, restrictedCalls, paymentOptions, timeout } ) {
+    static async #probeSequentially( { client, toolsToProbe, index, findings, restrictedCalls, paymentOptions, timeout } ) {
         if( index >= toolsToProbe.length ) {
             return
         }
@@ -42,22 +42,22 @@ class X402Prober {
             }
 
             if( detectionCode === 'PRB-007' ) {
-                messages.push( `PRB-007 probe(${toolName}): x402 payment detected (spec-konform)` )
+                findings.push( { code: 'PRB-007', severity: 'info', location: `probe(${toolName})`, message: 'x402 payment detected (spec-conformant)' } )
             } else if( detectionCode === 'PRB-008' ) {
-                messages.push( `PRB-008 probe(${toolName}): x402 payment detected via HTTP 402 response (transport mixing)` )
+                findings.push( { code: 'PRB-008', severity: 'warning', location: `probe(${toolName})`, message: 'x402 payment detected via HTTP 402 response (transport mixing)' } )
             } else if( detectionCode === 'PRB-009' ) {
-                messages.push( `PRB-009 probe(${toolName}): x402 payment detected via non-standard structuredContent` )
+                findings.push( { code: 'PRB-009', severity: 'warning', location: `probe(${toolName})`, message: 'x402 payment detected via non-standard structuredContent' } )
             } else if( detectionCode === 'PRB-010' ) {
-                messages.push( `PRB-010 probe(${toolName}): x402 API endpoint redirect detected` )
+                findings.push( { code: 'PRB-010', severity: 'info', location: `probe(${toolName})`, message: 'x402 API endpoint redirect detected' } )
             } else if( detectionCode === 'PRB-006' ) {
-                messages.push( `PRB-006 probe(${toolName}): x402 detected via legacy error code — server may not be spec-compliant` )
+                findings.push( { code: 'PRB-006', severity: 'warning', location: `probe(${toolName})`, message: 'x402 detected via legacy error code — server may not be spec-compliant' } )
             }
         } else if( restricted === null ) {
             const toolName = tool['name']
-            messages.push( `PRB-004 probe(${toolName}): Unexpected exception` )
+            findings.push( { code: 'PRB-004', severity: 'info', location: `probe(${toolName})`, message: 'Unexpected exception' } )
         }
 
-        await X402Prober.#probeSequentially( { client, toolsToProbe, index: index + 1, messages, restrictedCalls, paymentOptions, timeout } )
+        await X402Prober.#probeSequentially( { client, toolsToProbe, index: index + 1, findings, restrictedCalls, paymentOptions, timeout } )
     }
 
 

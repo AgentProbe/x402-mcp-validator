@@ -77,7 +77,7 @@ describe( 'McpServerValidator.compare', () => {
 
             expect( () => {
                 McpServerValidator.compare( { after } )
-            } ).toThrow( 'VAL-010' )
+            } ).toThrow( 'VAL-210' )
         } )
 
 
@@ -86,7 +86,7 @@ describe( 'McpServerValidator.compare', () => {
 
             expect( () => {
                 McpServerValidator.compare( { before } )
-            } ).toThrow( 'VAL-013' )
+            } ).toThrow( 'VAL-213' )
         } )
 
 
@@ -95,7 +95,7 @@ describe( 'McpServerValidator.compare', () => {
 
             expect( () => {
                 McpServerValidator.compare( { before: 'string', after } )
-            } ).toThrow( 'VAL-011' )
+            } ).toThrow( 'VAL-211' )
         } )
 
 
@@ -104,7 +104,7 @@ describe( 'McpServerValidator.compare', () => {
 
             expect( () => {
                 McpServerValidator.compare( { before, after: 42 } )
-            } ).toThrow( 'VAL-014' )
+            } ).toThrow( 'VAL-214' )
         } )
 
 
@@ -113,7 +113,7 @@ describe( 'McpServerValidator.compare', () => {
 
             expect( () => {
                 McpServerValidator.compare( { before: { entries: {} }, after } )
-            } ).toThrow( 'VAL-012' )
+            } ).toThrow( 'VAL-212' )
         } )
 
 
@@ -122,7 +122,7 @@ describe( 'McpServerValidator.compare', () => {
 
             expect( () => {
                 McpServerValidator.compare( { before, after: { categories: {} } } )
-            } ).toThrow( 'VAL-015' )
+            } ).toThrow( 'VAL-215' )
         } )
 
 
@@ -131,7 +131,7 @@ describe( 'McpServerValidator.compare', () => {
 
             expect( () => {
                 McpServerValidator.compare( { before: [], after } )
-            } ).toThrow( 'VAL-011' )
+            } ).toThrow( 'VAL-211' )
         } )
 
 
@@ -140,7 +140,7 @@ describe( 'McpServerValidator.compare', () => {
 
             expect( () => {
                 McpServerValidator.compare( { before: null, after } )
-            } ).toThrow( 'VAL-011' )
+            } ).toThrow( 'VAL-211' )
         } )
     } )
 

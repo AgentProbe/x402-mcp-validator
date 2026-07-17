@@ -2,31 +2,31 @@ class Validation {
 
 
     static validationStart( { endpoint, timeout } ) {
-        const struct = { status: false, messages: [] }
+        const struct = { status: false, findings: [] }
 
         if( endpoint === undefined ) {
-            struct['messages'].push( 'VAL-001 endpoint: Missing value' )
+            struct['findings'].push( { code: 'VAL-201', severity: 'error', location: 'endpoint', message: 'Missing value' } )
         } else if( typeof endpoint !== 'string' ) {
-            struct['messages'].push( 'VAL-002 endpoint: Must be a string' )
+            struct['findings'].push( { code: 'VAL-202', severity: 'error', location: 'endpoint', message: 'Must be a string' } )
         } else if( endpoint.trim() === '' ) {
-            struct['messages'].push( 'VAL-003 endpoint: Must not be empty' )
+            struct['findings'].push( { code: 'VAL-203', severity: 'error', location: 'endpoint', message: 'Must not be empty' } )
         } else {
             try {
                 new URL( endpoint )
             } catch( _e ) {
-                struct['messages'].push( 'VAL-004 endpoint: Must be a valid URL' )
+                struct['findings'].push( { code: 'VAL-204', severity: 'error', location: 'endpoint', message: 'Must be a valid URL' } )
             }
         }
 
         if( timeout !== undefined ) {
             if( typeof timeout !== 'number' ) {
-                struct['messages'].push( 'VAL-005 timeout: Must be a number' )
+                struct['findings'].push( { code: 'VAL-205', severity: 'error', location: 'timeout', message: 'Must be a number' } )
             } else if( timeout <= 0 ) {
-                struct['messages'].push( 'VAL-006 timeout: Must be greater than 0' )
+                struct['findings'].push( { code: 'VAL-206', severity: 'error', location: 'timeout', message: 'Must be greater than 0' } )
             }
         }
 
-        if( struct['messages'].length > 0 ) {
+        if( struct['findings'].length > 0 ) {
             return struct
         }
 
@@ -40,19 +40,19 @@ class Validation {
         const struct = { status: false, messages: [] }
 
         if( before === undefined ) {
-            struct['messages'].push( 'VAL-010 before: Missing value' )
+            struct['messages'].push( 'VAL-210 before: Missing value' )
         } else if( before === null || typeof before !== 'object' || Array.isArray( before ) ) {
-            struct['messages'].push( 'VAL-011 before: Must be an object' )
+            struct['messages'].push( 'VAL-211 before: Must be an object' )
         } else if( !before['categories'] || !before['entries'] ) {
-            struct['messages'].push( 'VAL-012 before: Missing categories or entries' )
+            struct['messages'].push( 'VAL-212 before: Missing categories or entries' )
         }
 
         if( after === undefined ) {
-            struct['messages'].push( 'VAL-013 after: Missing value' )
+            struct['messages'].push( 'VAL-213 after: Missing value' )
         } else if( after === null || typeof after !== 'object' || Array.isArray( after ) ) {
-            struct['messages'].push( 'VAL-014 after: Must be an object' )
+            struct['messages'].push( 'VAL-214 after: Must be an object' )
         } else if( !after['categories'] || !after['entries'] ) {
-            struct['messages'].push( 'VAL-015 after: Missing categories or entries' )
+            struct['messages'].push( 'VAL-215 after: Missing categories or entries' )
         }
 
         if( struct['messages'].length > 0 ) {

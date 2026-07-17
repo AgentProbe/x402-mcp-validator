@@ -64,7 +64,7 @@ describe( 'McpServerValidator.start', () => {
         jest.clearAllMocks()
 
         mockOAuthProber['probe'].mockResolvedValue( {
-            messages: [],
+            findings: [],
             supportsOAuth: false,
             protectedResource: null,
             authServer: null,
@@ -76,37 +76,37 @@ describe( 'McpServerValidator.start', () => {
     describe( 'Parameter Validation', () => {
 
         test( 'throws when endpoint is missing', async () => {
-            await expect( McpServerValidator.start( {} ) ).rejects.toThrow( 'VAL-001' )
+            await expect( McpServerValidator.start( {} ) ).rejects.toThrow( 'VAL-201' )
         } )
 
 
         test( 'throws when endpoint is not a string', async () => {
-            await expect( McpServerValidator.start( { endpoint: 42 } ) ).rejects.toThrow( 'VAL-002' )
+            await expect( McpServerValidator.start( { endpoint: 42 } ) ).rejects.toThrow( 'VAL-202' )
         } )
 
 
         test( 'throws when endpoint is empty', async () => {
-            await expect( McpServerValidator.start( { endpoint: '  ' } ) ).rejects.toThrow( 'VAL-003' )
+            await expect( McpServerValidator.start( { endpoint: '  ' } ) ).rejects.toThrow( 'VAL-203' )
         } )
 
 
         test( 'throws when endpoint is invalid URL', async () => {
-            await expect( McpServerValidator.start( { endpoint: 'not-a-url' } ) ).rejects.toThrow( 'VAL-004' )
+            await expect( McpServerValidator.start( { endpoint: 'not-a-url' } ) ).rejects.toThrow( 'VAL-204' )
         } )
 
 
         test( 'throws when timeout is not a number', async () => {
-            await expect( McpServerValidator.start( { endpoint: TEST_ENDPOINT, timeout: 'fast' } ) ).rejects.toThrow( 'VAL-005' )
+            await expect( McpServerValidator.start( { endpoint: TEST_ENDPOINT, timeout: 'fast' } ) ).rejects.toThrow( 'VAL-205' )
         } )
 
 
         test( 'throws when timeout is zero', async () => {
-            await expect( McpServerValidator.start( { endpoint: TEST_ENDPOINT, timeout: 0 } ) ).rejects.toThrow( 'VAL-006' )
+            await expect( McpServerValidator.start( { endpoint: TEST_ENDPOINT, timeout: 0 } ) ).rejects.toThrow( 'VAL-206' )
         } )
 
 
         test( 'throws when timeout is negative', async () => {
-            await expect( McpServerValidator.start( { endpoint: TEST_ENDPOINT, timeout: -1 } ) ).rejects.toThrow( 'VAL-006' )
+            await expect( McpServerValidator.start( { endpoint: TEST_ENDPOINT, timeout: -1 } ) ).rejects.toThrow( 'VAL-206' )
         } )
     } )
 
@@ -116,15 +116,15 @@ describe( 'McpServerValidator.start', () => {
         test( 'returns empty categories when server is not reachable', async () => {
             mockConnector['connect'].mockResolvedValue( {
                 status: false,
-                messages: [ 'CON-001 endpoint: Server is not reachable' ],
+                findings: [ { code: 'CON-201', severity: 'error', location: 'endpoint', message: 'Server is not reachable' } ],
                 client: null,
                 serverInfo: null
             } )
 
-            const { status, messages, categories, entries } = await McpServerValidator.start( { endpoint: TEST_ENDPOINT } )
+            const { status, findings, categories, entries } = await McpServerValidator.start( { endpoint: TEST_ENDPOINT } )
 
             expect( status ).toBe( false )
-            expect( messages ).toContainEqual( expect.stringContaining( 'CON-001' ) )
+            expect( findings ).toContainEqual( expect.objectContaining( { code: 'CON-201' } ) )
 
             EXPECTED_CATEGORY_KEYS
                 .forEach( ( key ) => {
@@ -147,14 +147,14 @@ describe( 'McpServerValidator.start', () => {
         beforeEach( () => {
             mockConnector['connect'].mockResolvedValue( {
                 status: true,
-                messages: [],
+                findings: [],
                 client: mockClient,
                 serverInfo: MOCK_SERVER_INFO
             } )
 
             mockConnector['discover'].mockResolvedValue( {
                 status: true,
-                messages: [],
+                findings: [],
                 tools: MOCK_TOOLS,
                 resources: MOCK_RESOURCES,
                 prompts: MOCK_PROMPTS,
@@ -254,14 +254,14 @@ describe( 'McpServerValidator.start', () => {
         beforeEach( () => {
             mockConnector['connect'].mockResolvedValue( {
                 status: true,
-                messages: [],
+                findings: [],
                 client: mockClient,
                 serverInfo: MOCK_SERVER_INFO
             } )
 
             mockConnector['discover'].mockResolvedValue( {
                 status: true,
-                messages: [],
+                findings: [],
                 tools: MOCK_TOOLS,
                 resources: MOCK_RESOURCES,
                 prompts: MOCK_PROMPTS,

@@ -8,11 +8,11 @@ describe( 'X402Prober', () => {
         test( 'returns PRB-005 when tools array is empty', async () => {
             const mockClient = { callTool: jest.fn() }
 
-            const { status, messages, restrictedCalls, paymentOptions } = await X402Prober
+            const { status, findings, restrictedCalls, paymentOptions } = await X402Prober
                 .probe( { client: mockClient, tools: [], timeout: 5000 } )
 
             expect( status ).toBe( false )
-            expect( messages ).toContain( 'PRB-005 probe: No tools available to probe' )
+            expect( findings ).toContainEqual( { code: 'PRB-005', severity: 'info', location: 'probe', message: 'No tools available to probe' } )
             expect( restrictedCalls ).toEqual( [] )
             expect( paymentOptions ).toEqual( [] )
         } )
@@ -21,11 +21,11 @@ describe( 'X402Prober', () => {
         test( 'returns PRB-005 when tools is not an array', async () => {
             const mockClient = { callTool: jest.fn() }
 
-            const { status, messages } = await X402Prober
+            const { status, findings } = await X402Prober
                 .probe( { client: mockClient, tools: null, timeout: 5000 } )
 
             expect( status ).toBe( false )
-            expect( messages[ 0 ] ).toContain( 'PRB-005' )
+            expect( findings[ 0 ]['code'] ).toBe( 'PRB-005' )
         } )
 
 
@@ -311,16 +311,16 @@ describe( 'X402Prober', () => {
                     .mockResolvedValueOnce( { content: [] } )
             }
 
-            const { messages, restrictedCalls } = await X402Prober
+            const { findings, restrictedCalls } = await X402Prober
                 .probe( { client: mockClient, tools: MOCK_TOOLS, timeout: 5000 } )
 
             expect( restrictedCalls ).toHaveLength( 1 )
-            expect( messages.some( ( m ) => m.includes( 'PRB-006' ) ) ).toBe( true )
-            expect( messages.some( ( m ) => m.includes( 'not be spec-compliant' ) ) ).toBe( true )
+            expect( findings.some( ( f ) => f['code'] === 'PRB-006' ) ).toBe( true )
+            expect( findings.some( ( f ) => f['message'].includes( 'not be spec-compliant' ) ) ).toBe( true )
         } )
 
 
-        test( 'PRB-007 message for spec-konform detection', async () => {
+        test( 'PRB-007 finding for spec-conformant detection', async () => {
             const mockClient = {
                 callTool: jest.fn()
                     .mockResolvedValueOnce( {
@@ -331,11 +331,11 @@ describe( 'X402Prober', () => {
                     .mockResolvedValueOnce( { content: [] } )
             }
 
-            const { messages } = await X402Prober
+            const { findings } = await X402Prober
                 .probe( { client: mockClient, tools: MOCK_TOOLS, timeout: 5000 } )
 
-            expect( messages.some( ( m ) => m.includes( 'PRB-007' ) ) ).toBe( true )
-            expect( messages.some( ( m ) => m.includes( 'spec-konform' ) ) ).toBe( true )
+            expect( findings.some( ( f ) => f['code'] === 'PRB-007' ) ).toBe( true )
+            expect( findings.some( ( f ) => f['message'].includes( 'spec-conformant' ) ) ).toBe( true )
         } )
 
 
@@ -350,15 +350,15 @@ describe( 'X402Prober', () => {
                     .mockResolvedValueOnce( { content: [] } )
             }
 
-            const { messages, restrictedCalls, paymentOptions } = await X402Prober
+            const { findings, restrictedCalls, paymentOptions } = await X402Prober
                 .probe( { client: mockClient, tools: MOCK_TOOLS, timeout: 5000 } )
 
             expect( restrictedCalls ).toHaveLength( 1 )
             expect( restrictedCalls[ 0 ].paymentRequired.x402Version ).toBe( 1 )
             expect( restrictedCalls[ 0 ].paymentRequired.accepts ).toHaveLength( 1 )
             expect( paymentOptions ).toHaveLength( 1 )
-            expect( messages.some( ( m ) => m.includes( 'PRB-008' ) ) ).toBe( true )
-            expect( messages.some( ( m ) => m.includes( 'transport mixing' ) ) ).toBe( true )
+            expect( findings.some( ( f ) => f['code'] === 'PRB-008' ) ).toBe( true )
+            expect( findings.some( ( f ) => f['message'].includes( 'transport mixing' ) ) ).toBe( true )
         } )
 
 
@@ -376,12 +376,12 @@ describe( 'X402Prober', () => {
                     .mockResolvedValueOnce( { content: [] } )
             }
 
-            const { messages, restrictedCalls } = await X402Prober
+            const { findings, restrictedCalls } = await X402Prober
                 .probe( { client: mockClient, tools: MOCK_TOOLS, timeout: 5000 } )
 
             expect( restrictedCalls ).toHaveLength( 1 )
             expect( restrictedCalls[ 0 ].paymentRequired.x402Version ).toBe( 2 )
-            expect( messages.some( ( m ) => m.includes( 'PRB-009' ) ) ).toBe( true )
+            expect( findings.some( ( f ) => f['code'] === 'PRB-009' ) ).toBe( true )
         } )
 
 
@@ -396,12 +396,12 @@ describe( 'X402Prober', () => {
                     .mockResolvedValueOnce( { content: [] } )
             }
 
-            const { messages, restrictedCalls } = await X402Prober
+            const { findings, restrictedCalls } = await X402Prober
                 .probe( { client: mockClient, tools: MOCK_TOOLS, timeout: 5000 } )
 
             expect( restrictedCalls ).toHaveLength( 1 )
             expect( restrictedCalls[ 0 ].paymentRequired.redirect ).toBeDefined()
-            expect( messages.some( ( m ) => m.includes( 'PRB-010' ) ) ).toBe( true )
+            expect( findings.some( ( f ) => f['code'] === 'PRB-010' ) ).toBe( true )
         } )
 
 
