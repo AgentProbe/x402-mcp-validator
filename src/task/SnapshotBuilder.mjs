@@ -23,6 +23,7 @@ const EMPTY_CATEGORIES = {
     supportsTaskList: false,
     supportsTaskCancel: false,
     supportsTaskAugmentedToolCall: false,
+    supportsStatelessDiscover: false,
     hasExperimentalCapabilities: false,
     supportsSampling: false,
     supportsElicitation: false,
@@ -36,12 +37,23 @@ const EMPTY_CATEGORIES = {
 }
 
 
+// AgentProbe-owned trust-model badge (F12) — NOT a literal x402 spec field. Derived from settlement timing:
+// exact / batch-settlement bind funds at pledge time (capital-backed); upto / auth-capture pledge before
+// the amount/release is finalized (credit-backed). Unknown schemes map to null (forward-compat).
+const TRUST_MODEL_BY_SCHEME = {
+    exact: 'capital-backed',
+    'batch-settlement': 'capital-backed',
+    upto: 'credit-backed',
+    'auth-capture': 'credit-backed'
+}
+
+
 class SnapshotBuilder {
 
 
-    static build( { endpoint, serverInfo, tools, resources, prompts, capabilities, partialCategories, restrictedCalls, paymentOptions, validPaymentOptions, latency, oauthEntries, supportsOAuth } ) {
-        const { categories } = SnapshotBuilder.#buildCategories( { partialCategories, restrictedCalls, paymentOptions, validPaymentOptions, oauthEntries, supportsOAuth } )
-        const { entries } = SnapshotBuilder.#buildEntries( { endpoint, serverInfo, tools, resources, prompts, capabilities, partialCategories, restrictedCalls, paymentOptions, validPaymentOptions, latency, oauthEntries } )
+    static build( { endpoint, serverInfo, tools, resources, prompts, capabilities, partialCategories, restrictedCalls, paymentOptions, validPaymentOptions, latency, oauthEntries, supportsOAuth, versionBranch } ) {
+        const { categories } = SnapshotBuilder.#buildCategories( { partialCategories, restrictedCalls, paymentOptions, validPaymentOptions, oauthEntries, supportsOAuth, versionBranch } )
+        const { entries } = SnapshotBuilder.#buildEntries( { endpoint, serverInfo, tools, resources, prompts, capabilities, partialCategories, restrictedCalls, paymentOptions, validPaymentOptions, latency, oauthEntries, versionBranch } )
 
         return { categories, entries }
     }
@@ -65,12 +77,18 @@ class SnapshotBuilder {
             specVersion: null,
             experimentalCapabilities: null,
             taskCapabilities: null,
+            versionBranch: {
+                legacyStateful: false,
+                statelessRc: false,
+                sessionId: null
+            },
             x402: {
                 version: null,
                 restrictedCalls: [],
                 paymentOptions: [],
                 networks: [],
                 schemes: [],
+                trustModels: [],
                 perTool: {}
             },
             oauth: oauthEntries || { ...EMPTY_OAUTH_ENTRIES },
@@ -85,7 +103,7 @@ class SnapshotBuilder {
     }
 
 
-    static #buildCategories( { partialCategories, restrictedCalls, paymentOptions, validPaymentOptions, oauthEntries, supportsOAuth } ) {
+    static #buildCategories( { partialCategories, restrictedCalls, paymentOptions, validPaymentOptions, oauthEntries, supportsOAuth, versionBranch } ) {
         const supportsX402 = restrictedCalls.length > 0
         const hasValidPaymentRequirements = validPaymentOptions.length > 0
         const { hasExact: supportsExactScheme } = SnapshotBuilder.#detectScheme( { paymentOptions: validPaymentOptions, scheme: 'exact' } )
@@ -116,6 +134,7 @@ class SnapshotBuilder {
             supportsTaskList: partialCategories['supportsTaskList'],
             supportsTaskCancel: partialCategories['supportsTaskCancel'],
             supportsTaskAugmentedToolCall: partialCategories['supportsTaskAugmentedToolCall'],
+            supportsStatelessDiscover: versionBranch?.['statelessRc'] ?? false,
             hasExperimentalCapabilities: partialCategories['hasExperimentalCapabilities'],
             supportsSampling: partialCategories['supportsSampling'] || false,
             supportsElicitation: partialCategories['supportsElicitation'] || false,
@@ -127,13 +146,15 @@ class SnapshotBuilder {
     }
 
 
-    static #buildEntries( { endpoint, serverInfo, tools, resources, prompts, capabilities, partialCategories, restrictedCalls, paymentOptions, validPaymentOptions, latency, oauthEntries } ) {
+    static #buildEntries( { endpoint, serverInfo, tools, resources, prompts, capabilities, partialCategories, restrictedCalls, paymentOptions, validPaymentOptions, latency, oauthEntries, versionBranch } ) {
         const { serverName, serverVersion, serverDescription, protocolVersion, instructions } = SnapshotBuilder.#extractServerInfo( { serverInfo } )
         const { networks } = SnapshotBuilder.#extractUniqueNetworks( { paymentOptions: validPaymentOptions } )
         const { schemes } = SnapshotBuilder.#extractUniqueSchemes( { paymentOptions: validPaymentOptions } )
+        const { trustModels } = SnapshotBuilder.#extractUniqueTrustModels( { paymentOptions: validPaymentOptions } )
         const { perTool } = SnapshotBuilder.#buildPerToolPayments( { restrictedCalls } )
         const { experimentalCapabilities } = SnapshotBuilder.#extractExperimentalKeys( { capabilities } )
         const { taskCapabilities } = SnapshotBuilder.#extractTaskCapabilities( { capabilities } )
+        const { versionBranchEntry } = SnapshotBuilder.#buildVersionBranchEntry( { serverInfo, versionBranch } )
 
         const version = restrictedCalls.length > 0 && restrictedCalls[ 0 ][ 'paymentRequired' ] && typeof restrictedCalls[ 0 ][ 'paymentRequired' ][ 'x402Version' ] === 'number'
             ? restrictedCalls[ 0 ][ 'paymentRequired' ][ 'x402Version' ]
@@ -154,12 +175,14 @@ class SnapshotBuilder {
             specVersion,
             experimentalCapabilities,
             taskCapabilities,
+            versionBranch: versionBranchEntry,
             x402: {
                 version,
                 restrictedCalls,
                 paymentOptions,
                 networks,
                 schemes,
+                trustModels,
                 perTool
             },
             oauth: oauthEntries || { ...EMPTY_OAUTH_ENTRIES },
@@ -241,13 +264,16 @@ class SnapshotBuilder {
                             return
                         }
 
+                        const { trustModel } = SnapshotBuilder.#classifyTrustModel( { scheme: option['scheme'] } )
+
                         byNetwork[network] = {
                             scheme: option['scheme'] || null,
                             amount: option['amount'] || null,
                             asset: option['asset'] || null,
                             payTo: option['payTo'] || null,
                             maxTimeoutSeconds: option['maxTimeoutSeconds'] || null,
-                            extra: option['extra'] || null
+                            extra: option['extra'] || null,
+                            trustModel
                         }
                     } )
 
@@ -296,6 +322,31 @@ class SnapshotBuilder {
         const schemes = Array.from( schemeSet )
 
         return { schemes }
+    }
+
+
+    static #classifyTrustModel( { scheme } ) {
+        const trustModel = TRUST_MODEL_BY_SCHEME[scheme] || null
+
+        return { trustModel }
+    }
+
+
+    static #extractUniqueTrustModels( { paymentOptions } ) {
+        const trustModelSet = new Set()
+
+        paymentOptions
+            .forEach( ( option ) => {
+                const { trustModel } = SnapshotBuilder.#classifyTrustModel( { scheme: option['scheme'] } )
+
+                if( typeof trustModel === 'string' ) {
+                    trustModelSet.add( trustModel )
+                }
+            } )
+
+        const trustModels = Array.from( trustModelSet )
+
+        return { trustModels }
     }
 
 
@@ -350,6 +401,17 @@ class SnapshotBuilder {
         const taskCapabilities = { list, cancel, augmentedToolCall }
 
         return { taskCapabilities }
+    }
+
+
+    static #buildVersionBranchEntry( { serverInfo, versionBranch } ) {
+        const versionBranchEntry = {
+            legacyStateful: serverInfo?.['protocolVersion'] != null,
+            statelessRc: versionBranch?.['statelessRc'] ?? false,
+            sessionId: serverInfo?.['sessionId'] ?? null
+        }
+
+        return { versionBranchEntry }
     }
 }
 

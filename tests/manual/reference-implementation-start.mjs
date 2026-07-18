@@ -46,6 +46,14 @@ const runStart = async () => {
         console.log( `    Networks: ${JSON.stringify( entries['x402']['networks'] )}` )
         console.log( `    Schemes: ${JSON.stringify( entries['x402']['schemes'] )}` )
 
+        console.log( '\n  Version Branch:' )
+        console.log( `    Legacy Stateful: ${entries['versionBranch']['legacyStateful']}` )
+        console.log( `    Stateless RC: ${entries['versionBranch']['statelessRc']}` )
+        console.log( `    Session ID: ${entries['versionBranch']['sessionId']}` )
+
+        console.log( '\n  Task Capabilities:' )
+        console.log( `    ${entries['taskCapabilities'] ? JSON.stringify( entries['taskCapabilities'] ) : 'none'}` )
+
         console.log( '\n  Latency:' )
         console.log( `    Ping: ${entries['latency']['ping']}ms` )
         console.log( `    ListTools: ${entries['latency']['listTools']}ms` )

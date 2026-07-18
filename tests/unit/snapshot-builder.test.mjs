@@ -57,7 +57,7 @@ describe( 'SnapshotBuilder', () => {
 
 
     describe( 'build', () => {
-        test( 'returns all 31 category keys', () => {
+        test( 'returns all 32 category keys', () => {
             const { categories } = SnapshotBuilder.build( buildArgs )
 
             EXPECTED_CATEGORY_KEYS
@@ -67,7 +67,7 @@ describe( 'SnapshotBuilder', () => {
         } )
 
 
-        test( 'returns all 17 entry keys', () => {
+        test( 'returns all 18 entry keys', () => {
             const { entries } = SnapshotBuilder.build( buildArgs )
 
             EXPECTED_ENTRY_KEYS
@@ -130,6 +130,55 @@ describe( 'SnapshotBuilder', () => {
 
             expect( entries.x402.perTool ).toHaveProperty( 'get_weather' )
             expect( entries.x402.perTool[ 'get_weather' ].networks ).toContain( 'eip155:84532' )
+        } )
+
+
+        test( 'tags each byNetwork entry with its trust model', () => {
+            const { entries } = SnapshotBuilder.build( buildArgs )
+
+            expect( entries.x402.perTool[ 'get_weather' ].byNetwork[ 'eip155:84532' ].trustModel ).toBe( 'capital-backed' )
+        } )
+
+
+        test( 'classifies trust model per scheme for all 4 schemes', () => {
+            const fourSchemeOptions = [
+                { scheme: 'exact', network: 'eip155:84532' },
+                { scheme: 'upto', network: 'eip155:84532' },
+                { scheme: 'batch-settlement', network: 'eip155:84532' },
+                { scheme: 'auth-capture', network: 'eip155:84532' }
+            ]
+
+            const { entries } = SnapshotBuilder.build( {
+                ...buildArgs,
+                paymentOptions: fourSchemeOptions,
+                validPaymentOptions: fourSchemeOptions
+            } )
+
+            expect( entries.x402.trustModels ).toContain( 'capital-backed' )
+            expect( entries.x402.trustModels ).toContain( 'credit-backed' )
+            expect( entries.x402.trustModels ).toHaveLength( 2 )
+        } )
+
+
+        test( 'exposes versionBranch entry shape (3 fields)', () => {
+            const { entries } = SnapshotBuilder.build( buildArgs )
+
+            expect( entries.versionBranch ).toEqual( {
+                legacyStateful: true,
+                statelessRc: false,
+                sessionId: null
+            } )
+        } )
+
+
+        test( 'reflects a stateless RC version branch into entry and category', () => {
+            const { categories, entries } = SnapshotBuilder.build( {
+                ...buildArgs,
+                versionBranch: { statelessRc: true, statelessDiscoverError: null, sessionId: null }
+            } )
+
+            expect( entries.versionBranch.statelessRc ).toBe( true )
+            expect( categories.supportsStatelessDiscover ).toBe( true )
         } )
 
 
@@ -268,6 +317,18 @@ describe( 'SnapshotBuilder', () => {
             expect( entries['specVersion'] ).toBeNull()
             expect( entries['experimentalCapabilities'] ).toBeNull()
             expect( entries['taskCapabilities'] ).toBeNull()
+        } )
+
+
+        test( 'returns empty trustModels and a false version branch', () => {
+            const { entries } = SnapshotBuilder.buildEmpty( { endpoint: TEST_ENDPOINT } )
+
+            expect( entries['x402']['trustModels'] ).toEqual( [] )
+            expect( entries['versionBranch'] ).toEqual( {
+                legacyStateful: false,
+                statelessRc: false,
+                sessionId: null
+            } )
         } )
     } )
 } )

@@ -219,7 +219,7 @@ const INVALID_PAYMENT_BAD_NETWORK = {
     accepts: [
         {
             scheme: 'exact',
-            network: 'bitcoin:mainnet',
+            network: 'bitcoin',
             amount: '100000',
             asset: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
             payTo: '0x7B4d4C1E3bD0C6e3c8e1E5dA1f3a0E7c9B2D4F6A',
@@ -250,6 +250,77 @@ const INVALID_PAYMENT_BAD_ADDRESS = {
             network: 'eip155:84532',
             amount: '100000',
             asset: '0xinvalid',
+            payTo: '0x7B4d4C1E3bD0C6e3c8e1E5dA1f3a0E7c9B2D4F6A',
+            maxTimeoutSeconds: 300
+        }
+    ]
+}
+
+
+// --- Valid Payment Required — the 3 additional x402 schemes (F12) ---
+
+const VALID_PAYMENT_REQUIRED_UPTO = {
+    x402Version: 2,
+    accepts: [
+        {
+            scheme: 'upto',
+            network: 'eip155:84532',
+            amount: '100000',
+            asset: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
+            payTo: '0x7B4d4C1E3bD0C6e3c8e1E5dA1f3a0E7c9B2D4F6A',
+            maxTimeoutSeconds: 300,
+            extra: {
+                name: 'USDC',
+                version: '2'
+            }
+        }
+    ]
+}
+
+const VALID_PAYMENT_REQUIRED_BATCH_SETTLEMENT = {
+    x402Version: 2,
+    accepts: [
+        {
+            scheme: 'batch-settlement',
+            network: 'eip155:84532',
+            amount: '100000',
+            asset: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
+            payTo: '0x7B4d4C1E3bD0C6e3c8e1E5dA1f3a0E7c9B2D4F6A',
+            maxTimeoutSeconds: 300,
+            extra: {
+                name: 'USDC',
+                version: '2'
+            }
+        }
+    ]
+}
+
+const VALID_PAYMENT_REQUIRED_AUTH_CAPTURE = {
+    x402Version: 2,
+    accepts: [
+        {
+            scheme: 'auth-capture',
+            network: 'eip155:84532',
+            amount: '100000',
+            asset: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
+            payTo: '0x7B4d4C1E3bD0C6e3c8e1E5dA1f3a0E7c9B2D4F6A',
+            maxTimeoutSeconds: 300,
+            extra: {
+                name: 'USDC',
+                version: '2'
+            }
+        }
+    ]
+}
+
+const VALID_PAYMENT_REQUIRED_GENERIC_CAIP2_NETWORK = {
+    x402Version: 2,
+    accepts: [
+        {
+            scheme: 'exact',
+            network: 'cosmos:cosmoshub-4',
+            amount: '100000',
+            asset: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
             payTo: '0x7B4d4C1E3bD0C6e3c8e1E5dA1f3a0E7c9B2D4F6A',
             maxTimeoutSeconds: 300
         }
@@ -312,6 +383,7 @@ const EXPECTED_CATEGORY_KEYS = [
     'supportsTaskList',
     'supportsTaskCancel',
     'supportsTaskAugmentedToolCall',
+    'supportsStatelessDiscover',
     'hasExperimentalCapabilities',
     'supportsSampling',
     'supportsElicitation',
@@ -325,7 +397,7 @@ const EXPECTED_CATEGORY_KEYS = [
 ]
 
 
-// --- Expected Entry Keys (17) ---
+// --- Expected Entry Keys (18) ---
 
 const EXPECTED_ENTRY_KEYS = [
     'endpoint',
@@ -341,6 +413,7 @@ const EXPECTED_ENTRY_KEYS = [
     'specVersion',
     'experimentalCapabilities',
     'taskCapabilities',
+    'versionBranch',
     'x402',
     'oauth',
     'latency',
@@ -372,6 +445,7 @@ const FULL_VALID_CATEGORIES = {
     supportsTaskList: false,
     supportsTaskCancel: false,
     supportsTaskAugmentedToolCall: false,
+    supportsStatelessDiscover: false,
     hasExperimentalCapabilities: false,
     supportsSampling: false,
     supportsElicitation: false,
@@ -409,6 +483,7 @@ const EMPTY_CATEGORIES = {
     supportsTaskList: false,
     supportsTaskCancel: false,
     supportsTaskAugmentedToolCall: false,
+    supportsStatelessDiscover: false,
     hasExperimentalCapabilities: false,
     supportsSampling: false,
     supportsElicitation: false,
@@ -483,6 +558,10 @@ export {
     MOCK_CAPABILITIES_WITH_ELICITATION,
     VALID_PAYMENT_REQUIRED,
     VALID_PAYMENT_REQUIRED_MULTI_NETWORK,
+    VALID_PAYMENT_REQUIRED_UPTO,
+    VALID_PAYMENT_REQUIRED_BATCH_SETTLEMENT,
+    VALID_PAYMENT_REQUIRED_AUTH_CAPTURE,
+    VALID_PAYMENT_REQUIRED_GENERIC_CAIP2_NETWORK,
     INVALID_PAYMENT_MISSING_VERSION,
     INVALID_PAYMENT_WRONG_VERSION,
     INVALID_PAYMENT_EMPTY_ACCEPTS,

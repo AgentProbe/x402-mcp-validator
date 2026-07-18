@@ -1,6 +1,7 @@
 const EVM_ADDRESS_REGEX = /^0x[0-9a-fA-F]{40}$/
-const ALLOWED_SCHEMES = [ 'exact' ]
+const ALLOWED_SCHEMES = [ 'exact', 'upto', 'batch-settlement', 'auth-capture' ]
 const KNOWN_NETWORK_PREFIXES = [ 'eip155:', 'solana:' ]
+const GENERIC_CAIP2_REGEX = /^[-a-z0-9]{3,8}:[-a-zA-Z0-9._%-]{1,64}$/
 
 
 class PaymentValidator {
@@ -179,7 +180,7 @@ class PaymentValidator {
         }
 
         if( !ALLOWED_SCHEMES.includes( scheme ) ) {
-            findings.push( { code: 'PAY-042', severity: 'error', location: `${prefix}.scheme`, message: `Invalid value "${scheme}". Allowed are exact` } )
+            findings.push( { code: 'PAY-042', severity: 'error', location: `${prefix}.scheme`, message: `Invalid value "${scheme}". Allowed are ${ALLOWED_SCHEMES.join( ', ' )}` } )
         }
     }
 
@@ -207,17 +208,24 @@ class PaymentValidator {
         const matchedPrefix = KNOWN_NETWORK_PREFIXES
             .find( ( p ) => network.startsWith( p ) )
 
-        if( !matchedPrefix ) {
-            findings.push( { code: 'PAY-052', severity: 'error', location: prefix, message: `Unknown prefix "${network}". Expected "eip155:*" or "solana:*"` } )
+        if( matchedPrefix ) {
+            const afterPrefix = network.slice( matchedPrefix.length )
+
+            if( afterPrefix === '' ) {
+                findings.push( { code: 'PAY-053', severity: 'error', location: prefix, message: 'Missing chain ID after prefix' } )
+            }
 
             return
         }
 
-        const afterPrefix = network.slice( matchedPrefix.length )
+        // Unknown namespace: syntactically valid CAIP-2 is accepted as info (PAY-054); malformed stays a hard error (PAY-052)
+        if( GENERIC_CAIP2_REGEX.test( network ) ) {
+            findings.push( { code: 'PAY-054', severity: 'info', location: prefix, message: `Unknown prefix but valid generic CAIP-2 syntax "${network}"` } )
 
-        if( afterPrefix === '' ) {
-            findings.push( { code: 'PAY-053', severity: 'error', location: prefix, message: 'Missing chain ID after prefix' } )
+            return
         }
+
+        findings.push( { code: 'PAY-052', severity: 'error', location: prefix, message: `Unknown prefix "${network}". Expected "eip155:*" or "solana:*"` } )
     }
 
 

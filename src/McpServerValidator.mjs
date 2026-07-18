@@ -19,22 +19,28 @@ class McpServerValidator {
             Validation.error( { messages } )
         }
 
-        const { findings: oauthFindings, supportsOAuth, oauthEntries } = await OAuthProber.probe( { endpoint, timeout } )
+        const [ oauthResult, connectResult, versionBranchResult ] = await Promise.all( [
+            OAuthProber.probe( { endpoint, timeout } ),
+            McpConnector.connect( { endpoint, timeout } ),
+            McpConnector.probeVersionBranch( { endpoint, timeout } )
+        ] )
 
-        const { status: connectStatus, findings: connectFindings, client, serverInfo } = await McpConnector.connect( { endpoint, timeout } )
+        const { findings: oauthFindings, supportsOAuth, oauthEntries } = oauthResult
+        const { status: connectStatus, findings: connectFindings, client, serverInfo } = connectResult
+        const { versionBranch, findings: versionBranchFindings } = versionBranchResult
 
         if( !connectStatus ) {
             const { categories, entries } = SnapshotBuilder.buildEmpty( { endpoint, oauthEntries, supportsOAuth } )
-            const findings = [ ...connectFindings, ...oauthFindings ]
+            const findings = [ ...connectFindings, ...oauthFindings, ...versionBranchFindings ]
 
             return { status: false, findings, categories, entries }
         }
 
-        const { findings: pipelineFindings, categories, entries } = await McpServerValidator.#runPipeline( { endpoint, client, serverInfo, timeout, oauthEntries, supportsOAuth } )
+        const { findings: pipelineFindings, categories, entries } = await McpServerValidator.#runPipeline( { endpoint, client, serverInfo, timeout, oauthEntries, supportsOAuth, versionBranch } )
 
         await McpConnector.disconnect( { client } )
 
-        const allFindings = [ ...connectFindings, ...oauthFindings, ...pipelineFindings ]
+        const allFindings = [ ...connectFindings, ...oauthFindings, ...versionBranchFindings, ...pipelineFindings ]
         const status = allFindings.length === 0
 
         return { status, findings: allFindings, categories, entries }
@@ -73,7 +79,7 @@ class McpServerValidator {
     }
 
 
-    static async #runPipeline( { endpoint, client, serverInfo, timeout, oauthEntries, supportsOAuth } ) {
+    static async #runPipeline( { endpoint, client, serverInfo, timeout, oauthEntries, supportsOAuth, versionBranch } ) {
         const allFindings = []
 
         const { findings: discoverFindings, tools, resources, prompts, capabilities } = await McpConnector.discover( { client } )
@@ -102,7 +108,8 @@ class McpServerValidator {
             validPaymentOptions,
             latency,
             oauthEntries,
-            supportsOAuth
+            supportsOAuth,
+            versionBranch
         } )
 
         return { findings: allFindings, categories, entries }
@@ -350,6 +357,13 @@ class McpServerValidator {
             globalChanged['schemes'] = { before: before['schemes'], after: after['schemes'] }
         }
 
+        const beforeTrustModels = JSON.stringify( before['trustModels'] || [] )
+        const afterTrustModels = JSON.stringify( after['trustModels'] || [] )
+
+        if( beforeTrustModels !== afterTrustModels ) {
+            globalChanged['trustModels'] = { before: before['trustModels'], after: after['trustModels'] }
+        }
+
         const diff = { toolsAdded, toolsRemoved, toolsModified, changed: globalChanged }
 
         return { diff }
@@ -393,7 +407,7 @@ class McpServerValidator {
                 const bNet = beforeByNetwork[network] || {}
                 const aNet = afterByNetwork[network] || {}
 
-                const fields = [ 'scheme', 'amount', 'asset', 'payTo', 'maxTimeoutSeconds' ]
+                const fields = [ 'scheme', 'amount', 'asset', 'payTo', 'maxTimeoutSeconds', 'trustModel' ]
 
                 fields
                     .forEach( ( f ) => {

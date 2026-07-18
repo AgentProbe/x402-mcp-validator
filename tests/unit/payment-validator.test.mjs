@@ -2,6 +2,10 @@ import { describe, test, expect } from '@jest/globals'
 import { PaymentValidator } from '../../src/task/PaymentValidator.mjs'
 import {
     VALID_PAYMENT_REQUIRED,
+    VALID_PAYMENT_REQUIRED_UPTO,
+    VALID_PAYMENT_REQUIRED_BATCH_SETTLEMENT,
+    VALID_PAYMENT_REQUIRED_AUTH_CAPTURE,
+    VALID_PAYMENT_REQUIRED_GENERIC_CAIP2_NETWORK,
     INVALID_PAYMENT_MISSING_VERSION,
     INVALID_PAYMENT_WRONG_VERSION,
     INVALID_PAYMENT_EMPTY_ACCEPTS,
@@ -215,6 +219,39 @@ describe( 'PaymentValidator', () => {
         } )
 
 
+        test( 'accepts upto scheme without PAY-04x finding', () => {
+            const { findings } = PaymentValidator
+                .validate( { restrictedCalls: [ { toolName: 'test', paymentRequired: VALID_PAYMENT_REQUIRED_UPTO } ], paymentOptions: [] } )
+
+            const schemeFinding = findings
+                .find( ( f ) => f['code'].startsWith( 'PAY-04' ) )
+
+            expect( schemeFinding ).toBeUndefined()
+        } )
+
+
+        test( 'accepts batch-settlement scheme without PAY-04x finding', () => {
+            const { findings } = PaymentValidator
+                .validate( { restrictedCalls: [ { toolName: 'test', paymentRequired: VALID_PAYMENT_REQUIRED_BATCH_SETTLEMENT } ], paymentOptions: [] } )
+
+            const schemeFinding = findings
+                .find( ( f ) => f['code'].startsWith( 'PAY-04' ) )
+
+            expect( schemeFinding ).toBeUndefined()
+        } )
+
+
+        test( 'accepts auth-capture scheme without PAY-04x finding', () => {
+            const { findings } = PaymentValidator
+                .validate( { restrictedCalls: [ { toolName: 'test', paymentRequired: VALID_PAYMENT_REQUIRED_AUTH_CAPTURE } ], paymentOptions: [] } )
+
+            const schemeFinding = findings
+                .find( ( f ) => f['code'].startsWith( 'PAY-04' ) )
+
+            expect( schemeFinding ).toBeUndefined()
+        } )
+
+
         test( 'detects missing scheme (PAY-040)', () => {
             const pr = { x402Version: 2, accepts: [ { network: 'eip155:84532', amount: '100', asset: '0x036CbD53842c5426634e7929541eC2318f3dCF7e', payTo: '0x7B4d4C1E3bD0C6e3c8e1E5dA1f3a0E7c9B2D4F6A', maxTimeoutSeconds: 300 } ] }
             const { findings } = PaymentValidator
@@ -228,7 +265,7 @@ describe( 'PaymentValidator', () => {
     } )
 
 
-    describe( 'validate — PAY-050/051/052/053 network validation', () => {
+    describe( 'validate — PAY-050/051/052/053/054 network validation', () => {
         test( 'detects bad network prefix (PAY-052)', () => {
             const { findings } = PaymentValidator
                 .validate( { restrictedCalls: [ { toolName: 'test', paymentRequired: INVALID_PAYMENT_BAD_NETWORK } ], paymentOptions: [] } )
@@ -237,6 +274,29 @@ describe( 'PaymentValidator', () => {
                 .find( ( f ) => f['code'] === 'PAY-052' )
 
             expect( match ).toBeDefined()
+        } )
+
+
+        test( 'accepts unknown but valid CAIP-2 network as PAY-054 info, not PAY-052', () => {
+            const { findings } = PaymentValidator
+                .validate( { restrictedCalls: [ { toolName: 'test', paymentRequired: VALID_PAYMENT_REQUIRED_GENERIC_CAIP2_NETWORK } ], paymentOptions: [] } )
+
+            const info = findings
+                .find( ( f ) => f['code'] === 'PAY-054' )
+
+            expect( info ).toBeDefined()
+            expect( info['severity'] ).toBe( 'info' )
+            expect( findings.find( ( f ) => f['code'] === 'PAY-052' ) ).toBeUndefined()
+        } )
+
+
+        test( 'a string without a colon stays PAY-052 (malformed, not generic CAIP-2)', () => {
+            const pr = { x402Version: 2, accepts: [ { scheme: 'exact', network: 'notanetwork', amount: '100', asset: '0x036CbD53842c5426634e7929541eC2318f3dCF7e', payTo: '0x7B4d4C1E3bD0C6e3c8e1E5dA1f3a0E7c9B2D4F6A', maxTimeoutSeconds: 300 } ] }
+            const { findings } = PaymentValidator
+                .validate( { restrictedCalls: [ { toolName: 'test', paymentRequired: pr } ], paymentOptions: [] } )
+
+            expect( findings.find( ( f ) => f['code'] === 'PAY-052' ) ).toBeDefined()
+            expect( findings.find( ( f ) => f['code'] === 'PAY-054' ) ).toBeUndefined()
         } )
 
 

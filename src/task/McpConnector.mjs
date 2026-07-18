@@ -38,6 +38,12 @@ class McpConnector {
 
         const capabilities = McpConnector.#getCapabilities( { client } )
 
+        // Our probe client opts into tasks (SEP-2663 double opt-in, see #tryStreamableHttp/#trySSE); a server
+        // that still advertises `tasks` back confirms the capability is genuinely available to opted-in clients.
+        if( capabilities && typeof capabilities === 'object' && capabilities['tasks'] != null ) {
+            findings.push( { code: 'CON-221', severity: 'info', location: 'capabilities.tasks', message: 'Tasks capability detected (SEP-2663, double opt-in confirmed)' } )
+        }
+
         const status = true
 
         return { status, findings, tools, resources, prompts, capabilities }
@@ -69,10 +75,67 @@ class McpConnector {
     }
 
 
+    static async probeVersionBranch( { endpoint, timeout } ) {
+        const findings = []
+
+        const { statelessRc, statelessDiscoverError, sessionId } = await McpConnector.#probeStatelessDiscover( { endpoint, timeout } )
+
+        if( statelessRc ) {
+            findings.push( { code: 'CON-220', severity: 'info', location: 'server/discover', message: 'MCP version-branch probe: stateless RC path (server/discover) supported' } )
+        }
+
+        const versionBranch = { statelessRc, statelessDiscoverError, sessionId }
+
+        return { versionBranch, findings }
+    }
+
+
+    static async #probeStatelessDiscover( { endpoint, timeout } ) {
+        const controller = new AbortController()
+        const timer = setTimeout( () => { controller.abort() }, timeout )
+
+        try {
+            const response = await fetch( endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json, text/event-stream'
+                },
+                body: JSON.stringify( { jsonrpc: '2.0', id: 1, method: 'server/discover', params: {} } ),
+                signal: controller['signal']
+            } )
+
+            clearTimeout( timer )
+
+            const sessionId = response['headers']?.['get']?.( 'mcp-session-id' ) || null
+
+            if( response['status'] === 404 || response['status'] === 405 ) {
+                return { statelessRc: false, statelessDiscoverError: null, sessionId }
+            }
+
+            const body = await response.json()
+
+            if( body && body['error'] ) {
+                return { statelessRc: false, statelessDiscoverError: null, sessionId }
+            }
+
+            const statelessRc = response['ok'] === true
+
+            return { statelessRc, statelessDiscoverError: null, sessionId }
+        } catch( e ) {
+            clearTimeout( timer )
+            const statelessDiscoverError = e['message'] || String( e )
+
+            return { statelessRc: false, statelessDiscoverError, sessionId: null }
+        }
+    }
+
+
     static #extractServerInfoFromClient( { client } ) {
         try {
             const version = client.getServerVersion()
             const protocolVersion = client?.['_transport']?.['_protocolVersion'] || null
+            const sessionId = client?.['_transport']?.['sessionId'] || null
             const instructions = client.getInstructions?.() || null
 
             const serverInfo = {
@@ -82,6 +145,7 @@ class McpConnector {
                     description: version?.['description'] || null
                 },
                 protocolVersion,
+                sessionId,
                 instructions
             }
 
@@ -146,7 +210,7 @@ class McpConnector {
     static async #tryStreamableHttp( { endpoint, timeout, clientInfo } ) {
         try {
             const transport = new StreamableHTTPClientTransport( new URL( endpoint ) )
-            const client = new Client( clientInfo )
+            const client = new Client( clientInfo, { capabilities: { tasks: { list: {}, cancel: {} } } } )
 
             await client.connect( transport )
 
@@ -164,7 +228,7 @@ class McpConnector {
     static async #trySSE( { endpoint, timeout, clientInfo } ) {
         try {
             const transport = new SSEClientTransport( new URL( endpoint ) )
-            const client = new Client( clientInfo )
+            const client = new Client( clientInfo, { capabilities: { tasks: { list: {}, cancel: {} } } } )
 
             await client.connect( transport )
 

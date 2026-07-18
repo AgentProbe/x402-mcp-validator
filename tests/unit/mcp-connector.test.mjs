@@ -21,7 +21,7 @@ const MockClient = jest.fn().mockImplementation( () => ( {
     getServerVersion: mockGetServerVersion,
     getServerCapabilities: mockGetServerCapabilities,
     getInstructions: mockGetInstructions,
-    _transport: { _protocolVersion: '2025-03-26' }
+    _transport: { _protocolVersion: '2025-03-26', sessionId: 'test-session-123' }
 } ) )
 
 const MockStreamableHTTPClientTransport = jest.fn()
@@ -125,6 +125,23 @@ describe( 'McpConnector', () => {
 
             globalThis.fetch = originalFetch
         } )
+
+
+        test( 'declares client-side tasks opt-in (SEP-2663 double opt-in)', async () => {
+            const originalFetch = globalThis.fetch
+            globalThis.fetch = jest.fn().mockResolvedValue( { ok: true } )
+            mockConnect.mockResolvedValue( undefined )
+
+            await McpConnector
+                .connect( { endpoint: 'https://reachable.example.com/mcp', timeout: 5000 } )
+
+            expect( MockClient ).toHaveBeenCalledWith(
+                expect.any( Object ),
+                { capabilities: { tasks: { list: {}, cancel: {} } } }
+            )
+
+            globalThis.fetch = originalFetch
+        } )
     } )
 
 
@@ -214,6 +231,81 @@ describe( 'McpConnector', () => {
 
             expect( prompts ).toEqual( [] )
             expect( findings ).toContainEqual( { code: 'CON-211', severity: 'info', location: 'prompts/list', message: 'Request failed' } )
+        } )
+
+
+        test( 'emits CON-221 when server advertises a tasks capability', async () => {
+            mockListTools.mockResolvedValue( { tools: [] } )
+            mockListResources.mockResolvedValue( { resources: [] } )
+            mockListPrompts.mockResolvedValue( { prompts: [] } )
+            mockGetServerCapabilities.mockReturnValue( { tools: {}, tasks: { list: true } } )
+
+            const mockClient = {
+                listTools: mockListTools,
+                listResources: mockListResources,
+                listPrompts: mockListPrompts,
+                getServerCapabilities: mockGetServerCapabilities
+            }
+
+            const { findings } = await McpConnector
+                .discover( { client: mockClient } )
+
+            expect( findings ).toContainEqual( { code: 'CON-221', severity: 'info', location: 'capabilities.tasks', message: 'Tasks capability detected (SEP-2663, double opt-in confirmed)' } )
+        } )
+    } )
+
+
+    describe( 'probeVersionBranch', () => {
+        test( 'reports statelessRc true and emits CON-220 when server/discover succeeds', async () => {
+            const originalFetch = globalThis.fetch
+            globalThis.fetch = jest.fn().mockResolvedValue( {
+                ok: true,
+                status: 200,
+                headers: { get: () => null },
+                json: async () => ( { jsonrpc: '2.0', id: 1, result: { tools: [] } } )
+            } )
+
+            const { versionBranch, findings } = await McpConnector
+                .probeVersionBranch( { endpoint: 'https://rc.example.com/mcp', timeout: 5000 } )
+
+            expect( versionBranch['statelessRc'] ).toBe( true )
+            expect( findings ).toContainEqual( expect.objectContaining( { code: 'CON-220', severity: 'info' } ) )
+
+            globalThis.fetch = originalFetch
+        } )
+
+
+        test( 'reports statelessRc false on a JSON-RPC -32601 (method not found)', async () => {
+            const originalFetch = globalThis.fetch
+            globalThis.fetch = jest.fn().mockResolvedValue( {
+                ok: true,
+                status: 200,
+                headers: { get: () => null },
+                json: async () => ( { jsonrpc: '2.0', id: 1, error: { code: -32601, message: 'Method not found' } } )
+            } )
+
+            const { versionBranch, findings } = await McpConnector
+                .probeVersionBranch( { endpoint: 'https://legacy.example.com/mcp', timeout: 5000 } )
+
+            expect( versionBranch['statelessRc'] ).toBe( false )
+            expect( findings ).toEqual( [] )
+
+            globalThis.fetch = originalFetch
+        } )
+
+
+        test( 'reports statelessRc false with an error message on network failure', async () => {
+            const originalFetch = globalThis.fetch
+            globalThis.fetch = jest.fn().mockRejectedValue( new Error( 'ECONNREFUSED' ) )
+
+            const { versionBranch, findings } = await McpConnector
+                .probeVersionBranch( { endpoint: 'https://down.example.com/mcp', timeout: 5000 } )
+
+            expect( versionBranch['statelessRc'] ).toBe( false )
+            expect( versionBranch['statelessDiscoverError'] ).toBe( 'ECONNREFUSED' )
+            expect( findings ).toEqual( [] )
+
+            globalThis.fetch = originalFetch
         } )
     } )
 

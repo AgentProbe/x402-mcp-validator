@@ -32,7 +32,8 @@ const mockConnector = {
     connect: jest.fn(),
     discover: jest.fn(),
     measureLatency: jest.fn(),
-    disconnect: jest.fn()
+    disconnect: jest.fn(),
+    probeVersionBranch: jest.fn()
 }
 
 const mockOAuthProber = {
@@ -44,7 +45,8 @@ jest.unstable_mockModule( '../../../src/task/McpConnector.mjs', () => ( {
         connect: mockConnector['connect'],
         discover: mockConnector['discover'],
         measureLatency: mockConnector['measureLatency'],
-        disconnect: mockConnector['disconnect']
+        disconnect: mockConnector['disconnect'],
+        probeVersionBranch: mockConnector['probeVersionBranch']
     }
 } ) )
 
@@ -69,6 +71,11 @@ describe( 'McpServerValidator.start', () => {
             protectedResource: null,
             authServer: null,
             oauthEntries: { ...MOCK_OAUTH_ENTRIES_EMPTY }
+        } )
+
+        mockConnector['probeVersionBranch'].mockResolvedValue( {
+            versionBranch: { statelessRc: false, statelessDiscoverError: null, sessionId: null },
+            findings: []
         } )
     } )
 
@@ -171,7 +178,7 @@ describe( 'McpServerValidator.start', () => {
         } )
 
 
-        test( 'returns all 31 category keys', async () => {
+        test( 'returns all 32 category keys', async () => {
             const { categories } = await McpServerValidator.start( { endpoint: TEST_ENDPOINT } )
 
             const categoryKeys = Object.keys( categories )
@@ -181,11 +188,11 @@ describe( 'McpServerValidator.start', () => {
                     expect( categoryKeys ).toContain( key )
                 } )
 
-            expect( categoryKeys.length ).toBe( 31 )
+            expect( categoryKeys.length ).toBe( 32 )
         } )
 
 
-        test( 'returns all 17 entry keys', async () => {
+        test( 'returns all 18 entry keys', async () => {
             const { entries } = await McpServerValidator.start( { endpoint: TEST_ENDPOINT } )
 
             const entryKeys = Object.keys( entries )
@@ -195,7 +202,7 @@ describe( 'McpServerValidator.start', () => {
                     expect( entryKeys ).toContain( key )
                 } )
 
-            expect( entryKeys.length ).toBe( 17 )
+            expect( entryKeys.length ).toBe( 18 )
         } )
 
 
